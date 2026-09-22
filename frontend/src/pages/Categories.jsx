@@ -1,11 +1,53 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { Plus, Smartphone, Monitor, Package, Trash2, X } from "lucide-react";
+import {
+  Plus,
+  Smartphone,
+  Monitor,
+  Package,
+  Trash2,
+  X,
+  Tablet,
+  Laptop,
+  Headphones,
+  Camera,
+  Gamepad2,
+  Watch,
+  Keyboard,
+  Mouse,
+  Printer,
+} from "lucide-react";
 import api from "../api/axios.js";
 import { useNotification } from "../context/NotificationContext.jsx";
 
-const iconMap = { smartphone: Smartphone, monitor: Monitor, package: Package };
-const iconOptions = ["smartphone", "monitor", "package"];
+const iconMap = {
+  smartphone: Smartphone,
+  monitor: Monitor,
+  package: Package,
+  tablet: Tablet,
+  laptop: Laptop,
+  headphones: Headphones,
+  camera: Camera,
+  gamepad: Gamepad2,
+  watch: Watch,
+  keyboard: Keyboard,
+  mouse: Mouse,
+  printer: Printer,
+};
+const iconOptions = [
+  "smartphone",
+  "monitor",
+  "package",
+  "tablet",
+  "laptop",
+  "headphones",
+  "camera",
+  "gamepad",
+  "watch",
+  "keyboard",
+  "mouse",
+  "printer",
+];
 const colorOptions = ["#6366f1", "#22c55e", "#f59e0b", "#ec4899", "#06b6d4", "#ef4444"];
 
 export default function Categories() {
@@ -14,15 +56,28 @@ export default function Categories() {
   const [form, setForm] = useState({ name: "", icon: "package", color: "#6366f1", description: "" });
   const { confirmAction, notify } = useNotification();
 
-  const load = () => api.get("/categories").then((res) => setCategories(res.data));
+  const load = () => api.get("/categories").then((res) => setCategories(res.data)).catch((err) => {
+    notify(err.response?.data?.message || "Lỗi khi tải danh mục");
+  });
   useEffect(() => { load(); }, []);
 
   const submit = async (e) => {
     e.preventDefault();
-    await api.post("/categories", form);
-    setModal(false);
-    setForm({ name: "", icon: "package", color: "#6366f1", description: "" });
-    load();
+    const name = form.name.trim();
+    if (!name) {
+      notify("Vui lòng nhập tên danh mục.", "info");
+      return;
+    }
+
+    try {
+      await api.post("/categories", { ...form, name, description: form.description.trim() });
+      setModal(false);
+      setForm({ name: "", icon: "package", color: "#6366f1", description: "" });
+      notify("Đã thêm danh mục thành công.", "success");
+      load();
+    } catch (err) {
+      notify(err.response?.data?.message || "Lỗi khi lưu danh mục");
+    }
   };
 
   const remove = async (id) => {
@@ -86,11 +141,11 @@ export default function Categories() {
               <textarea placeholder="Mô tả ngắn (tùy chọn)" className="input-field resize-none" rows={2} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
               <div>
                 <p className="text-xs text-slate-400 mb-2">Biểu tượng</p>
-                <div className="flex gap-2">
+                <div className="grid grid-cols-7 gap-2">
                   {iconOptions.map((i) => {
                     const Icon = iconMap[i];
                     return (
-                      <button type="button" key={i} onClick={() => setForm({ ...form, icon: i })} className={`w-10 h-10 rounded-xl flex items-center justify-center border ${form.icon === i ? "border-primary-500 bg-primary-500/20" : "border-white/10"}`}>
+                      <button type="button" key={i} onClick={() => setForm({ ...form, icon: i })} className={`w-10 h-10 rounded-xl flex items-center justify-center border ${form.icon === i ? "border-primary-500 bg-primary-500/20" : "border-white/10"}`} title={`Biểu tượng ${i}`} aria-label={`Chọn biểu tượng ${i}`}>
                         <Icon size={18} className="text-slate-300" />
                       </button>
                     );

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
-import { ArrowLeft, Plus, TrendingUp, TrendingDown, Wallet, Trash2, X, Pencil } from "lucide-react";
+import { ArrowLeft, Plus, TrendingUp, TrendingDown, Wallet, Trash2, X, Pencil, BarChart3, ChevronDown, ChevronUp, LayoutGrid, Table2 } from "lucide-react";
 import api from "../api/axios.js";
 import { useNotification } from "../context/NotificationContext.jsx";
 import { formatVND, formatDate } from "../utils/format.js";
@@ -44,6 +44,8 @@ export default function ProductDetail() {
   const [customerSearch, setCustomerSearch] = useState("");
   const [quickCustomer, setQuickCustomer] = useState({ name: "", phone: "", address: "" });
   const [tab, setTab] = useState("purchases");
+  const [transactionView, setTransactionView] = useState(() => window.matchMedia("(max-width: 639px)").matches ? "card" : "table");
+  const [mobileStatsOpen, setMobileStatsOpen] = useState(false);
   const [modal, setModal] = useState(false);
   const [editModal, setEditModal] = useState(false);
   const [editTx, setEditTx] = useState(null);
@@ -77,6 +79,13 @@ export default function ProductDetail() {
       setTab("purchases");
     }
   }, [data, tab]);
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia("(max-width: 639px)");
+    const updateView = (event) => setTransactionView(event.matches ? "card" : "table");
+    mediaQuery.addEventListener("change", updateView);
+    return () => mediaQuery.removeEventListener("change", updateView);
+  }, []);
 
   const submitPurchase = async (e) => {
     e.preventDefault();
@@ -357,54 +366,76 @@ export default function ProductDetail() {
         <ArrowLeft size={16} /> Quay lại {product.category.name}
       </Link>
 
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-white">{product.name}</h1>
-          <p className="text-slate-400 text-sm mt-1">Tồn kho hiện tại: <span className="text-white font-semibold">{product.stockQty}</span> · Giá vốn TB: {formatVND(product.costPrice)}</p>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0">
+          <h1 className="text-xl sm:text-2xl font-bold text-white truncate">{product.name}</h1>
+          <p className="text-slate-400 text-sm mt-1">Tồn kho: <span className="text-white font-semibold">{product.stockQty}</span> · Giá vốn: {formatVND(product.costPrice)}</p>
         </div>
-        <div className="flex items-center gap-2">
-          <button onClick={openEditProductModal} className="btn-secondary flex items-center gap-2">
+        <div className="flex w-full items-center gap-2 sm:w-auto">
+          <button onClick={openEditProductModal} className="btn-secondary flex flex-1 items-center justify-center gap-2 sm:flex-none">
             <Pencil size={18} /> Sửa
           </button>
-          <button onClick={() => setModal(true)} className="btn-primary flex items-center gap-2">
+          <button onClick={() => setModal(true)} className="btn-primary flex flex-1 items-center justify-center gap-2 sm:flex-none">
             <Plus size={18} /> Thêm giao dịch
           </button>
         </div>
       </div>
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="lg:hidden">
+        <button
+          type="button"
+          onClick={() => setMobileStatsOpen((prev) => !prev)}
+          className="flex w-full items-center justify-between rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-medium text-slate-200"
+        >
+          <span className="flex items-center gap-2"><BarChart3 size={17} /> Thống kê sản phẩm</span>
+          {mobileStatsOpen ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+        </button>
+      </div>
+
+      <div className={`${mobileStatsOpen ? "grid" : "hidden"} grid-cols-1 gap-3 sm:grid-cols-2 lg:grid lg:grid-cols-4 lg:gap-4`}>
         <StatCard icon={TrendingDown} label="Tổng chi nhập" value={formatVND(summary.totalPurchaseCost)} color="#f97316" />
         <StatCard icon={TrendingUp} label="Tổng doanh thu" value={formatVND(summary.totalRevenue)} color="#22c55e" />
         <StatCard icon={Wallet} label="Chi phí phát sinh" value={formatVND(summary.totalExpense)} color="#ef4444" />
         <StatCard icon={TrendingUp} label="Lợi nhuận" value={formatVND(summary.profit)} color={summary.profit >= 0 ? "#6366f1" : "#ef4444"} />
       </div>
 
-      <div className="card">
-        <div className="flex gap-2 mb-4 border-b border-white/5 pb-3">
-          {TABS.map((t) => (
-            <button
-              key={t.key}
-              onClick={() => {
-                if (t.key === "sales" && isOutOfStock) return;
-                setTab(t.key);
-              }}
-              disabled={t.key === "sales" && isOutOfStock}
-              className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors ${
-                tab === t.key
-                  ? "bg-primary-600/20 text-primary-300"
-                  : t.key === "sales" && isOutOfStock
-                    ? "text-slate-600 cursor-not-allowed"
-                    : "text-slate-400 hover:text-white"
-              }`}
-            >
-              {t.label}
+      <div className="card p-3 sm:p-5">
+        <div className="mb-4 flex flex-col gap-3 border-b border-white/5 pb-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex gap-2 overflow-x-auto">
+            {TABS.map((t) => (
+              <button
+                key={t.key}
+                onClick={() => {
+                  if (t.key === "sales" && isOutOfStock) return;
+                  setTab(t.key);
+                }}
+                disabled={t.key === "sales" && isOutOfStock}
+                className={`shrink-0 whitespace-nowrap rounded-xl px-3 py-2 text-sm font-medium transition-colors sm:px-4 ${
+                  tab === t.key
+                    ? "bg-primary-600/20 text-primary-300"
+                    : t.key === "sales" && isOutOfStock
+                      ? "text-slate-600 cursor-not-allowed"
+                      : "text-slate-400 hover:text-white"
+                }`}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
+          <div className="flex self-end rounded-xl border border-white/10 bg-white/5 p-1">
+            <button type="button" onClick={() => setTransactionView("card")} className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs ${transactionView === "card" ? "bg-primary-500 text-white" : "text-slate-400 hover:text-white"}`} title="Xem dạng card" aria-label="Xem dạng card">
+              <LayoutGrid size={15} /> <span>Card</span>
             </button>
-          ))}
+            <button type="button" onClick={() => setTransactionView("table")} className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs ${transactionView === "table" ? "bg-primary-500 text-white" : "text-slate-400 hover:text-white"}`} title="Xem dạng bảng" aria-label="Xem dạng bảng">
+              <Table2 size={15} /> <span>Bảng</span>
+            </button>
+          </div>
         </div>
 
         {tab === "purchases" && (
           <TableList
             rows={purchases}
+            viewMode={transactionView}
             empty="Chưa có phiếu nhập nào"
             columns={["Ngày", "Số lượng", "Đơn giá", "Thành tiền", "Nhà cung cấp", "", ""]}
             render={(r) => [
@@ -419,11 +450,21 @@ export default function ProductDetail() {
               <button onClick={() => openEditTransactionModal("purchases", r)} className="text-slate-500 hover:text-blue-400"><Pencil size={15} /></button>,
               <button onClick={() => removeItem("purchases", r._id)} className="text-slate-500 hover:text-red-400"><Trash2 size={15} /></button>,
             ]}
+            cardRender={(r) => (
+              <TransactionCard
+                title="Phiếu nhập"
+                date={r.date}
+                details={["Số lượng", r.quantity, "Đơn giá", formatVND(r.unitCost), "Thành tiền", formatVND(r.totalCost), "Nhà cung cấp", r.supplier || "-"]}
+                note={r.note}
+                actions={[<button onClick={() => openEditTransactionModal("purchases", r)} className="text-slate-400 hover:text-blue-400" aria-label="Sửa phiếu nhập"><Pencil size={16} /></button>, <button onClick={() => removeItem("purchases", r._id)} className="text-slate-400 hover:text-red-400" aria-label="Xóa phiếu nhập"><Trash2 size={16} /></button>]}
+              />
+            )}
           />
         )}
         {tab === "sales" && (
           <TableList
             rows={sales}
+            viewMode={transactionView}
             empty="Chưa có đơn bán nào"
             columns={["Ngày", "Số lượng", "Đơn giá", "Doanh thu", "Khách hàng", "", ""]}
             render={(r) => [
@@ -438,11 +479,21 @@ export default function ProductDetail() {
               <button onClick={() => openEditTransactionModal("sales", r)} className="text-slate-500 hover:text-blue-400"><Pencil size={15} /></button>,
               <button onClick={() => removeItem("sales", r._id)} className="text-slate-500 hover:text-red-400"><Trash2 size={15} /></button>,
             ]}
+            cardRender={(r) => (
+              <TransactionCard
+                title="Đơn bán"
+                date={r.date}
+                details={["Số lượng", r.quantity, "Đơn giá", formatVND(r.unitPrice), "Doanh thu", formatVND(r.totalRevenue), "Khách hàng", r.customer || "-"]}
+                note={r.note}
+                actions={[<button onClick={() => openEditTransactionModal("sales", r)} className="text-slate-400 hover:text-blue-400" aria-label="Sửa đơn bán"><Pencil size={16} /></button>, <button onClick={() => removeItem("sales", r._id)} className="text-slate-400 hover:text-red-400" aria-label="Xóa đơn bán"><Trash2 size={16} /></button>]}
+              />
+            )}
           />
         )}
         {tab === "expenses" && (
           <TableList
             rows={expenses}
+            viewMode={transactionView}
             empty="Chưa có khoản chi nào"
             columns={["Ngày", "Loại chi phí", "Số tiền", "Ghi chú", "", ""]}
             render={(r) => [
@@ -456,6 +507,15 @@ export default function ProductDetail() {
               <button onClick={() => openEditTransactionModal("expenses", r)} className="text-slate-500 hover:text-blue-400"><Pencil size={15} /></button>,
               <button onClick={() => removeItem("expenses", r._id)} className="text-slate-500 hover:text-red-400"><Trash2 size={15} /></button>,
             ]}
+            cardRender={(r) => (
+              <TransactionCard
+                title={EXPENSE_TYPES[r.type] || "Chi phí"}
+                date={r.date}
+                details={["Số tiền", formatVND(r.amount)]}
+                note={r.note}
+                actions={[<button onClick={() => openEditTransactionModal("expenses", r)} className="text-slate-400 hover:text-blue-400" aria-label="Sửa khoản chi"><Pencil size={16} /></button>, <button onClick={() => removeItem("expenses", r._id)} className="text-slate-400 hover:text-red-400" aria-label="Xóa khoản chi"><Trash2 size={16} /></button>]}
+              />
+            )}
           />
         )}
       </div>
@@ -749,8 +809,39 @@ export default function ProductDetail() {
   );
 }
 
-function TableList({ rows, columns, render, empty }) {
+function TransactionCard({ title, date, details, note, actions }) {
+  const detailItems = [];
+  for (let index = 0; index < details.length; index += 2) {
+    detailItems.push({ label: details[index], value: details[index + 1] });
+  }
+
+  return (
+    <article className="group relative overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-br from-slate-800/85 to-slate-900/90 p-4 shadow-lg shadow-black/20 transition-all duration-200 hover:-translate-y-0.5 hover:border-primary-400/30 hover:shadow-xl hover:shadow-primary-950/30">
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary-400/60 to-transparent opacity-70" />
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h3 className="font-semibold text-white">{title}</h3>
+          <p className="mt-1 text-xs text-slate-500">{formatDate(date)}</p>
+        </div>
+        <div className="flex items-center gap-1 rounded-lg bg-black/15 p-1 opacity-80 transition-opacity group-hover:opacity-100">{actions}</div>
+      </div>
+      <div className="mt-4 grid grid-cols-2 gap-2">
+        {detailItems.map((item) => (
+          <div key={item.label} className="rounded-xl border border-white/5 bg-white/[0.035] px-3 py-2.5">
+            <p className="text-[11px] uppercase tracking-wide text-slate-500">{item.label}</p>
+            <p className="mt-1 break-words text-sm font-medium text-slate-200">{item.value}</p>
+          </div>
+        ))}
+      </div>
+      {note && <p className="mt-3 border-t border-white/5 pt-3 text-xs text-slate-500">{note}</p>}
+    </article>
+  );
+}
+
+function TableList({ rows, columns, render, cardRender, viewMode, empty }) {
   if (!rows.length) return <p className="text-sm text-slate-500 text-center py-8">{empty}</p>;
+  if (viewMode === "card") return <div className="grid grid-cols-1 gap-3">{rows.map((row) => <div key={row._id}>{cardRender(row)}</div>)}</div>;
+
   return (
     <div className="overflow-x-auto">
       <table className="w-full text-sm">

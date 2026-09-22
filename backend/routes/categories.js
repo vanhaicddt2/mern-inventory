@@ -30,10 +30,20 @@ router.get("/", async (req, res) => {
 router.post("/", async (req, res) => {
   try {
     const { name, icon, color, description } = req.body;
-    const category = await Category.create({ name, slug: toSlug(name), icon, color, description });
+    const normalizedName = String(name || "").trim();
+    if (!normalizedName) return res.status(400).json({ message: "Ten danh muc la bat buoc" });
+
+    const category = await Category.create({
+      name: normalizedName,
+      slug: toSlug(normalizedName),
+      icon,
+      color,
+      description: String(description || "").trim(),
+    });
     res.status(201).json(category);
   } catch (err) {
-    res.status(400).json({ message: err.message });
+    const message = err.code === 11000 ? "Ten danh muc da ton tai" : err.message;
+    res.status(400).json({ message });
   }
 });
 
