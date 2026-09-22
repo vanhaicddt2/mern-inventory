@@ -372,11 +372,11 @@ export default function ProductDetail() {
           <p className="text-slate-400 text-sm mt-1">Tồn kho: <span className="text-white font-semibold">{product.stockQty}</span> · Giá vốn: {formatVND(product.costPrice)}</p>
         </div>
         <div className="flex w-full items-center gap-2 sm:w-auto">
-          <button onClick={openEditProductModal} className="btn-secondary flex flex-1 items-center justify-center gap-2 sm:flex-none">
-            <Pencil size={18} /> Sửa
+          <button onClick={openEditProductModal} className="btn-secondary flex h-11 flex-1 items-center justify-center gap-2 px-3 sm:h-auto sm:flex-none sm:px-4" title="Sửa sản phẩm" aria-label="Sửa sản phẩm">
+            <Pencil size={18} /> <span className="hidden sm:inline">Sửa</span>
           </button>
-          <button onClick={() => setModal(true)} className="btn-primary flex flex-1 items-center justify-center gap-2 sm:flex-none">
-            <Plus size={18} /> Thêm giao dịch
+          <button onClick={() => setModal(true)} className="btn-primary flex h-11 flex-1 items-center justify-center gap-2 px-3 sm:h-auto sm:flex-none sm:px-4" title="Thêm giao dịch" aria-label="Thêm giao dịch">
+            <Plus size={18} /> <span className="hidden sm:inline">Thêm giao dịch</span>
           </button>
         </div>
       </div>
