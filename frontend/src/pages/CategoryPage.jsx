@@ -4,6 +4,7 @@ import { Plus, Search, X, AlertTriangle, Package, TrendingUp, TrendingDown, Wall
 import api from "../api/axios.js";
 import { formatVND } from "../utils/format.js";
 import StatCard from "../components/StatCard.jsx";
+import { useNotification } from "../context/NotificationContext.jsx";
 
 const formatNumberInput = (value) => {
   const digits = String(value ?? "").replace(/\D/g, "");
@@ -29,6 +30,7 @@ export default function CategoryPage() {
   const [modal, setModal] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
   const [form, setForm] = useState({ name: "", sku: "", costPrice: "", sellPrice: "", stockQty: 0, minStock: 2 });
+  const { confirmAction, notify } = useNotification();
 
   const load = () => {
     api.get(`/products?category=${id}${search ? `&search=${search}` : ""}`).then((res) => setProducts(res.data));
@@ -186,12 +188,12 @@ export default function CategoryPage() {
   };
 
   const remove = async (productId) => {
-    if (!confirm("Bạn có chắc muốn xóa sản phẩm này?")) return;
+    if (!await confirmAction("Bạn có chắc muốn xóa sản phẩm này không?", "Xóa sản phẩm")) return;
     try {
       await api.delete(`/products/${productId}`);
       load();
     } catch (err) {
-      alert(err.response?.data?.message || "Lỗi khi xóa sản phẩm");
+      notify(err.response?.data?.message || "Lỗi khi xóa sản phẩm");
     }
   };
 

@@ -15,8 +15,36 @@ router.get("/", async (req, res) => {
     filter.$or = [{ name: regex }, { phone: regex }, { email: regex }];
   }
 
-  const suppliers = await Supplier.find(filter).sort("name");
-  res.json(suppliers);
+  const suppliers = await Supplier.find(filter).sort("name").lean();
+  const supplierIds = suppliers.map((supplier) => supplier._id);
+  const purchaseStats = await Purchase.aggregate([
+    { $match: { supplierId: { $in: supplierIds } } },
+    {
+      $group: {
+        _id: "$supplierId",
+        purchaseCount: { $sum: 1 },
+        totalSpent: { $sum: "$totalCost" },
+      },
+    },
+  ]);
+  const statsBySupplier = new Map(purchaseStats.map((stats) => [String(stats._id), stats]));
+
+  res.json(suppliers.map((supplier) => ({
+    ...supplier,
+    purchaseCount: statsBySupplier.get(String(supplier._id))?.purchaseCount || 0,
+    totalSpent: statsBySupplier.get(String(supplier._id))?.totalSpent || 0,
+  })));
+});
+
+router.get("/:id/history", async (req, res) => {
+  const supplier = await Supplier.findById(req.params.id).select("name");
+  if (!supplier) return res.status(404).json({ message: "Khong tim thay nha cung cap" });
+
+  const purchases = await Purchase.find({ supplierId: supplier._id })
+    .populate("product", "name sku")
+    .sort("-date")
+    .lean();
+  res.json({ supplier, purchases });
 });
 
 router.post("/", async (req, res) => {

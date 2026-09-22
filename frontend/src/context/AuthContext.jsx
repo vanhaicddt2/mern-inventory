@@ -5,22 +5,30 @@ const AuthContext = createContext();
 
 export const useAuth = () => useContext(AuthContext);
 
+const getStored = (key) => localStorage.getItem(key) || sessionStorage.getItem(key);
+
+const clearStoredAuth = () => {
+  localStorage.removeItem("token");
+  localStorage.removeItem("user");
+  sessionStorage.removeItem("token");
+  sessionStorage.removeItem("user");
+};
+
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(() => {
-    const saved = localStorage.getItem("user");
+    const saved = getStored("user");
     return saved ? JSON.parse(saved) : null;
   });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const token = localStorage.getItem("token");
+    const token = getStored("token");
     if (token) {
       api
         .get("/auth/me")
         .then((res) => setUser(res.data))
         .catch(() => {
-          localStorage.removeItem("token");
-          localStorage.removeItem("user");
+          clearStoredAuth();
           setUser(null);
         })
         .finally(() => setLoading(false));
@@ -29,10 +37,12 @@ export const AuthProvider = ({ children }) => {
     }
   }, []);
 
-  const login = async (email, password) => {
+  const login = async (email, password, rememberMe = true) => {
     const { data } = await api.post("/auth/login", { email, password });
-    localStorage.setItem("token", data.token);
-    localStorage.setItem("user", JSON.stringify(data));
+    const storage = rememberMe ? localStorage : sessionStorage;
+    clearStoredAuth();
+    storage.setItem("token", data.token);
+    storage.setItem("user", JSON.stringify(data));
     setUser(data);
     return data;
   };
@@ -46,8 +56,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   const logout = () => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
+    clearStoredAuth();
     setUser(null);
   };
 

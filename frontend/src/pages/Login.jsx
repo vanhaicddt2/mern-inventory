@@ -7,6 +7,7 @@ export default function Login() {
   const { login } = useAuth();
   const navigate = useNavigate();
   const [form, setForm] = useState({ email: "", password: "" });
+  const [rememberMe, setRememberMe] = useState(true);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -15,7 +16,7 @@ export default function Login() {
     setError("");
     setLoading(true);
     try {
-      await login(form.email, form.password);
+      await login(form.email, form.password, rememberMe);
       navigate("/");
     } catch (err) {
       setError(err.response?.data?.message || "Đăng nhập thất bại");
@@ -67,6 +68,15 @@ export default function Login() {
               onChange={(e) => setForm({ ...form, password: e.target.value })}
             />
           </div>
+          <label className="flex items-center gap-2 text-sm text-slate-400 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={rememberMe}
+              onChange={(e) => setRememberMe(e.target.checked)}
+              className="h-4 w-4 accent-primary-500"
+            />
+            Duy trì đăng nhập
+          </label>
           <button type="submit" disabled={loading} className="btn-primary w-full flex items-center justify-center gap-2">
             {loading && <Loader2 size={18} className="animate-spin" />}
             Đăng nhập

@@ -15,8 +15,36 @@ router.get("/", async (req, res) => {
     filter.$or = [{ name: regex }, { phone: regex }, { email: regex }];
   }
 
-  const customers = await Customer.find(filter).sort("name");
-  res.json(customers);
+  const customers = await Customer.find(filter).sort("name").lean();
+  const customerIds = customers.map((customer) => customer._id);
+  const salesStats = await Sale.aggregate([
+    { $match: { customerId: { $in: customerIds } } },
+    {
+      $group: {
+        _id: "$customerId",
+        purchaseCount: { $sum: 1 },
+        totalSpent: { $sum: "$totalRevenue" },
+      },
+    },
+  ]);
+  const statsByCustomer = new Map(salesStats.map((stats) => [String(stats._id), stats]));
+
+  res.json(customers.map((customer) => ({
+    ...customer,
+    purchaseCount: statsByCustomer.get(String(customer._id))?.purchaseCount || 0,
+    totalSpent: statsByCustomer.get(String(customer._id))?.totalSpent || 0,
+  })));
+});
+
+router.get("/:id/history", async (req, res) => {
+  const customer = await Customer.findById(req.params.id).select("name");
+  if (!customer) return res.status(404).json({ message: "Khong tim thay khach hang" });
+
+  const sales = await Sale.find({ customerId: customer._id })
+    .populate("product", "name sku")
+    .sort("-date")
+    .lean();
+  res.json({ customer, sales });
 });
 
 router.post("/", async (req, res) => {

@@ -12,8 +12,11 @@ import {
   Menu,
   X,
   Layers,
+  PanelLeftClose,
+  PanelLeftOpen,
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext.jsx";
+import { useNotification } from "../context/NotificationContext.jsx";
 import api from "../api/axios.js";
 import PWAInstallPrompt from "./PWAInstallPrompt.jsx";
 
@@ -25,8 +28,10 @@ const iconMap = {
 
 export default function Layout() {
   const { user, logout } = useAuth();
+  const { confirmAction } = useNotification();
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [categories, setCategories] = useState([]);
 
   useEffect(() => {
@@ -47,7 +52,9 @@ export default function Layout() {
 
       {/* Sidebar */}
       <aside
-        className={`fixed lg:static z-40 top-0 left-0 h-full w-72 glass border-r border-white/5 flex flex-col transition-transform duration-300 ${
+        className={`fixed lg:static z-40 top-0 left-0 h-full glass border-r border-white/5 flex flex-col transition-all duration-300 ${
+          sidebarCollapsed ? "lg:w-0 lg:overflow-hidden" : "lg:w-72"
+        } ${
           open ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
         }`}
       >
@@ -59,9 +66,19 @@ export default function Layout() {
             <h1 className="font-bold text-white text-lg leading-tight">InvManager</h1>
             <p className="text-xs text-slate-400">Quản lý kinh doanh</p>
           </div>
-          <button className="ml-auto lg:hidden text-slate-400" onClick={() => setOpen(false)}>
-            <X size={20} />
-          </button>
+          <div className="ml-auto flex items-center gap-3">
+            <button
+              className="hidden lg:block text-slate-400 hover:text-white transition-colors"
+              onClick={() => setSidebarCollapsed(true)}
+              title="Ẩn Sidebar"
+              aria-label="Ẩn Sidebar"
+            >
+              <PanelLeftClose size={20} />
+            </button>
+            <button className="lg:hidden text-slate-400" onClick={() => setOpen(false)} aria-label="Đóng menu">
+              <X size={20} />
+            </button>
+          </div>
         </div>
 
         <nav className="flex-1 px-4 py-6 space-y-1 overflow-y-auto">
@@ -109,7 +126,9 @@ export default function Layout() {
               <p className="text-xs text-slate-400 truncate">{user?.role === "admin" ? "Quản trị viên" : "Nhân viên"}</p>
             </div>
             <button
-              onClick={() => {
+              onClick={async () => {
+                const confirmed = await confirmAction("Bạn có chắc muốn đăng xuất khỏi tài khoản này không?", "Xác nhận đăng xuất");
+                if (!confirmed) return;
                 logout();
                 navigate("/login");
               }}
@@ -124,6 +143,16 @@ export default function Layout() {
 
       {/* Main */}
       <div className="flex-1 flex flex-col min-w-0">
+        {sidebarCollapsed && (
+          <button
+            onClick={() => setSidebarCollapsed(false)}
+            className="hidden lg:flex fixed top-4 left-4 z-30 h-10 w-10 items-center justify-center rounded-xl glass text-slate-300 hover:text-white transition-colors"
+            title="Mở Sidebar"
+            aria-label="Mở Sidebar"
+          >
+            <PanelLeftOpen size={20} />
+          </button>
+        )}
         <header className="lg:hidden flex items-center gap-3 px-4 py-4 glass border-b border-white/5 sticky top-0 z-20">
           <button onClick={() => setOpen(true)} className="text-slate-300">
             <Menu size={22} />

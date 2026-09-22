@@ -1,13 +1,18 @@
 import { useEffect, useState } from "react";
-import { Plus, Search, X, Truck } from "lucide-react";
+import { Plus, Search, X, Truck, History, PackageOpen } from "lucide-react";
 import api from "../api/axios.js";
+import { useNotification } from "../context/NotificationContext.jsx";
+import { formatVND, formatDate } from "../utils/format.js";
 
 export default function Suppliers() {
   const [suppliers, setSuppliers] = useState([]);
   const [search, setSearch] = useState("");
   const [modal, setModal] = useState(false);
   const [editing, setEditing] = useState(null);
+  const [history, setHistory] = useState(null);
+  const [historyLoading, setHistoryLoading] = useState(false);
   const [form, setForm] = useState({ name: "", phone: "", email: "", address: "", note: "" });
+  const { confirmAction, notify } = useNotification();
 
   const load = () => {
     api
@@ -49,14 +54,26 @@ export default function Suppliers() {
       setModal(false);
       load();
     } catch (err) {
-      alert(err.response?.data?.message || "Lỗi khi lưu nhà cung cấp");
+      notify(err.response?.data?.message || "Lỗi khi lưu nhà cung cấp");
     }
   };
 
   const removeSupplier = async (id) => {
-    if (!confirm("Xóa nhà cung cấp này?")) return;
+    if (!await confirmAction("Bạn có chắc muốn xóa nhà cung cấp này không?", "Xóa nhà cung cấp")) return;
     await api.delete(`/suppliers/${id}`);
     load();
+  };
+
+  const openHistory = async (supplier) => {
+    setHistoryLoading(true);
+    try {
+      const { data } = await api.get(`/suppliers/${supplier._id}/history`);
+      setHistory(data);
+    } catch (err) {
+      notify(err.response?.data?.message || "Lỗi khi tải lịch sử nhập hàng");
+    } finally {
+      setHistoryLoading(false);
+    }
   };
 
   return (
@@ -86,6 +103,8 @@ export default function Suppliers() {
                 <th className="pb-2 font-medium">Email</th>
                 <th className="pb-2 font-medium">Địa chỉ</th>
                 <th className="pb-2 font-medium">Ghi chú</th>
+                <th className="pb-2 font-medium">Số phiếu nhập</th>
+                <th className="pb-2 font-medium">Tổng tiền nhập</th>
                 <th className="pb-2 font-medium"></th>
               </tr>
             </thead>
@@ -97,7 +116,12 @@ export default function Suppliers() {
                   <td className="py-2.5">{s.email || "-"}</td>
                   <td className="py-2.5">{s.address || "-"}</td>
                   <td className="py-2.5">{s.note || "-"}</td>
+                  <td className="py-2.5 text-center">{s.purchaseCount || 0}</td>
+                  <td className="py-2.5 font-medium text-amber-300">{formatVND(s.totalSpent || 0)}</td>
                   <td className="py-2.5 text-right whitespace-nowrap">
+                    <button onClick={() => openHistory(s)} className="inline-flex items-center gap-1 text-sky-400 hover:text-sky-300 mr-3" title="Xem lịch sử nhập hàng">
+                      <History size={15} /> Lịch sử
+                    </button>
                     <button onClick={() => openEdit(s)} className="text-primary-400 hover:text-primary-300 mr-3">Sửa</button>
                     <button onClick={() => removeSupplier(s._id)} className="text-red-400 hover:text-red-300">Xóa</button>
                   </td>
@@ -131,6 +155,46 @@ export default function Suppliers() {
           </div>
         </div>
       )}
+
+      {history && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" onClick={() => setHistory(null)}>
+          <div className="card w-full max-w-3xl max-h-[85vh] overflow-hidden" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h2 className="font-semibold text-white text-lg flex items-center gap-2"><PackageOpen size={18} /> Lịch sử nhập hàng</h2>
+                <p className="text-sm text-slate-400 mt-1">{history.supplier.name}</p>
+              </div>
+              <button onClick={() => setHistory(null)} className="text-slate-400 hover:text-white" aria-label="Đóng lịch sử"><X size={20} /></button>
+            </div>
+            <div className="grid grid-cols-2 gap-3 mb-4">
+              <div className="rounded-xl bg-white/5 p-3"><p className="text-xs text-slate-400">Số phiếu nhập</p><p className="text-lg font-semibold text-white mt-1">{history.purchases.length}</p></div>
+              <div className="rounded-xl bg-white/5 p-3"><p className="text-xs text-slate-400">Tổng tiền nhập</p><p className="text-lg font-semibold text-amber-300 mt-1">{formatVND(history.purchases.reduce((sum, purchase) => sum + Number(purchase.totalCost || 0), 0))}</p></div>
+            </div>
+            <div className="overflow-auto max-h-[52vh]">
+              {history.purchases.length ? (
+                <table className="w-full min-w-[560px] text-sm">
+                  <thead className="text-left text-xs uppercase text-slate-500 border-b border-white/10">
+                    <tr><th className="px-3 py-3">Sản phẩm</th><th className="px-3 py-3">Số lượng</th><th className="px-3 py-3">Đơn giá</th><th className="px-3 py-3">Thành tiền</th><th className="px-3 py-3">Ngày nhập</th></tr>
+                  </thead>
+                  <tbody className="divide-y divide-white/5">
+                    {history.purchases.map((purchase) => (
+                      <tr key={purchase._id} className="text-slate-300">
+                        <td className="px-3 py-3 text-white">{purchase.product?.name || "Sản phẩm đã xóa"}</td>
+                        <td className="px-3 py-3">{purchase.quantity}</td>
+                        <td className="px-3 py-3">{formatVND(purchase.unitCost)}</td>
+                        <td className="px-3 py-3 font-medium text-amber-300">{formatVND(purchase.totalCost)}</td>
+                        <td className="px-3 py-3 text-slate-400">{formatDate(purchase.date)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              ) : <p className="py-10 text-center text-sm text-slate-500">Nhà cung cấp chưa có lịch sử nhập hàng.</p>}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {historyLoading && !history && <div className="fixed bottom-4 right-4 z-50 rounded-xl bg-slate-800 px-4 py-3 text-sm text-slate-200 shadow-xl">Đang tải lịch sử...</div>}
     </div>
   );
 }

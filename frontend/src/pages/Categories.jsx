@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { Plus, Smartphone, Monitor, Package, Trash2, X } from "lucide-react";
 import api from "../api/axios.js";
+import { useNotification } from "../context/NotificationContext.jsx";
 
 const iconMap = { smartphone: Smartphone, monitor: Monitor, package: Package };
 const iconOptions = ["smartphone", "monitor", "package"];
@@ -11,6 +12,7 @@ export default function Categories() {
   const [categories, setCategories] = useState([]);
   const [modal, setModal] = useState(false);
   const [form, setForm] = useState({ name: "", icon: "package", color: "#6366f1", description: "" });
+  const { confirmAction, notify } = useNotification();
 
   const load = () => api.get("/categories").then((res) => setCategories(res.data));
   useEffect(() => { load(); }, []);
@@ -24,12 +26,12 @@ export default function Categories() {
   };
 
   const remove = async (id) => {
-    if (!confirm("Xóa danh mục này?")) return;
+    if (!await confirmAction("Bạn có chắc muốn xóa danh mục này không?", "Xóa danh mục")) return;
     try {
       await api.delete(`/categories/${id}`);
       load();
     } catch (err) {
-      alert(err.response?.data?.message || "Lỗi khi xóa");
+      notify(err.response?.data?.message || "Lỗi khi xóa");
     }
   };
 

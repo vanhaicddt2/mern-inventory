@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { ArrowLeft, Plus, TrendingUp, TrendingDown, Wallet, Trash2, X, Pencil } from "lucide-react";
 import api from "../api/axios.js";
+import { useNotification } from "../context/NotificationContext.jsx";
 import { formatVND, formatDate } from "../utils/format.js";
 import StatCard from "../components/StatCard.jsx";
 
@@ -32,6 +33,7 @@ const EXPENSE_TYPES = {
 
 export default function ProductDetail() {
   const { id } = useParams();
+  const { confirmAction, notify } = useNotification();
   const [data, setData] = useState(null);
   const [customers, setCustomers] = useState([]);
   const [suppliers, setSuppliers] = useState([]);
@@ -82,7 +84,7 @@ export default function ProductDetail() {
 
     if (supplierMode === "existing") {
       if (!purchaseForm.supplierId || purchaseForm.supplierId === "guest") {
-        alert("Vui lòng chọn nhà cung cấp trong danh bạ.");
+        notify("Vui lòng chọn nhà cung cấp trong danh bạ.", "info");
         return;
       }
       supplierId = purchaseForm.supplierId;
@@ -94,7 +96,7 @@ export default function ProductDetail() {
       const quickAddress = quickSupplier.address.trim();
 
       if (!quickName) {
-        alert("Vui lòng nhập tên nhà cung cấp.");
+        notify("Vui lòng nhập tên nhà cung cấp.", "info");
         return;
       }
 
@@ -143,7 +145,7 @@ export default function ProductDetail() {
   const submitSale = async (e) => {
     e.preventDefault();
     if (data?.product?.stockQty <= 0) {
-      alert("Sản phẩm đã hết tồn kho, không thể tạo đơn bán.");
+      notify("Sản phẩm đã hết tồn kho, không thể tạo đơn bán.", "info");
       return;
     }
     try {
@@ -151,7 +153,7 @@ export default function ProductDetail() {
 
       if (customerMode === "existing") {
         if (!saleForm.customerId || saleForm.customerId === "guest") {
-          alert("Vui lòng chọn khách hàng trong danh bạ.");
+          notify("Vui lòng chọn khách hàng trong danh bạ.", "info");
           return;
         }
         customerId = saleForm.customerId;
@@ -163,7 +165,7 @@ export default function ProductDetail() {
         const quickAddress = quickCustomer.address.trim();
 
         if (!quickName) {
-          alert("Vui lòng nhập tên khách hàng.");
+          notify("Vui lòng nhập tên khách hàng.", "info");
           return;
         }
 
@@ -209,7 +211,7 @@ export default function ProductDetail() {
       setModal(false);
       load();
     } catch (err) {
-      alert(err.response?.data?.message || "Lỗi khi tạo đơn bán");
+      notify(err.response?.data?.message || "Lỗi khi tạo đơn bán");
     }
   };
   const submitExpense = async (e) => {
@@ -245,7 +247,7 @@ export default function ProductDetail() {
       setEditModal(false);
       load();
     } catch (err) {
-      alert(err.response?.data?.message || "Lỗi khi cập nhật sản phẩm");
+      notify(err.response?.data?.message || "Lỗi khi cập nhật sản phẩm");
     }
   };
 
@@ -325,12 +327,12 @@ export default function ProductDetail() {
       setEditTx(null);
       load();
     } catch (err) {
-      alert(err.response?.data?.message || "Lỗi khi cập nhật giao dịch");
+      notify(err.response?.data?.message || "Lỗi khi cập nhật giao dịch");
     }
   };
 
   const removeItem = async (type, itemId) => {
-    if (!confirm("Xóa mục này?")) return;
+    if (!await confirmAction("Bạn có chắc muốn xóa mục này không?", "Xóa giao dịch")) return;
     await api.delete(`/${type}/${itemId}`);
     load();
   };
