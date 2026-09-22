@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
-import { Plus, Search, X, AlertTriangle, Package, TrendingUp, TrendingDown, Wallet, ChevronDown, ChevronUp, Trash2, Pencil } from "lucide-react";
+import { Plus, Search, X, AlertTriangle, Package, TrendingUp, TrendingDown, Wallet, ChevronDown, ChevronUp, Trash2, Pencil, LayoutGrid, Table2 } from "lucide-react";
 import api from "../api/axios.js";
 import { formatVND } from "../utils/format.js";
 import StatCard from "../components/StatCard.jsx";
@@ -19,10 +19,12 @@ const parseFormattedNumber = (value) => {
 export default function CategoryPage() {
   const { id } = useParams();
   const [products, setProducts] = useState([]);
+  const [productTotals, setProductTotals] = useState({});
   const [category, setCategory] = useState(null);
   const [categoryStats, setCategoryStats] = useState(null);
   const [statsOpen, setStatsOpen] = useState(false);
   const [search, setSearch] = useState("");
+  const [viewMode, setViewMode] = useState("card");
   const [modal, setModal] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
   const [form, setForm] = useState({ name: "", sku: "", costPrice: "", sellPrice: "", stockQty: 0, minStock: 2 });
@@ -68,6 +70,20 @@ export default function CategoryPage() {
           const pid = String(e?.product?._id || e?.product);
           return productIdSet.has(pid);
         });
+
+        const totals = {};
+        categoryProducts.forEach((product) => {
+          totals[String(product._id)] = { purchaseCost: 0, salesRevenue: 0 };
+        });
+        categoryPurchases.forEach((purchase) => {
+          const pid = String(purchase?.product?._id || purchase?.product);
+          if (totals[pid]) totals[pid].purchaseCost += toNumber(purchase.totalCost);
+        });
+        categorySales.forEach((sale) => {
+          const pid = String(sale?.product?._id || sale?.product);
+          if (totals[pid]) totals[pid].salesRevenue += toNumber(sale.totalRevenue);
+        });
+        setProductTotals(totals);
 
         const totalProducts = categoryProducts.length;
         const totalStockQty = categoryProducts.reduce((sum, p) => sum + toNumber(p.stockQty), 0);
@@ -115,6 +131,7 @@ export default function CategoryPage() {
         });
       } catch {
         setCategoryStats(null);
+        setProductTotals({});
       }
     };
 
@@ -256,59 +273,111 @@ export default function CategoryPage() {
         </div>
       )}
 
-      <div className="relative max-w-sm">
-        <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500" />
-        <input placeholder="Tìm sản phẩm..." className="input-field pl-10" value={search} onChange={(e) => setSearch(e.target.value)} />
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="relative max-w-sm flex-1">
+          <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500" />
+          <input placeholder="Tìm sản phẩm..." className="input-field pl-10" value={search} onChange={(e) => setSearch(e.target.value)} />
+        </div>
+        <div className="flex items-center gap-1 rounded-xl border border-white/10 bg-white/5 p-1" aria-label="Kiểu hiển thị sản phẩm">
+          <button
+            type="button"
+            onClick={() => setViewMode("card")}
+            className={`flex items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors ${viewMode === "card" ? "bg-primary-500 text-white" : "text-slate-400 hover:text-white"}`}
+            aria-label="Xem dạng thẻ"
+            title="Xem dạng thẻ"
+          >
+            <LayoutGrid size={16} />
+            <span className="hidden sm:inline">Thẻ</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setViewMode("table")}
+            className={`flex items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors ${viewMode === "table" ? "bg-primary-500 text-white" : "text-slate-400 hover:text-white"}`}
+            aria-label="Xem dạng bảng"
+            title="Xem dạng bảng"
+          >
+            <Table2 size={16} />
+            <span className="hidden sm:inline">Bảng</span>
+          </button>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {products.map((p) => (
-          <Link key={p._id} to={`/products/${p._id}`} className="card group relative hover:border-primary-500/40 transition-colors border border-transparent">
-            <div className="absolute top-3 right-3 flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity z-10">
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.preventDefault();
-                  openEditModal(p);
-                }}
-                className="text-slate-500 hover:text-blue-400 transition-colors"
-                aria-label="Sửa sản phẩm"
-              >
-                <Pencil size={16} />
-              </button>
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.preventDefault();
-                  remove(p._id);
-                }}
-                className="text-slate-500 hover:text-red-400 transition-colors"
-                aria-label="Xóa sản phẩm"
-              >
-                <Trash2 size={16} />
-              </button>
-            </div>
-            <div className="flex items-start justify-between">
-              <h3 className="font-semibold text-white">{p.name}</h3>
-              {p.stockQty <= p.minStock && <AlertTriangle size={16} className="text-amber-400 shrink-0" />}
-            </div>
-            {p.sku && <p className="text-xs text-slate-500 mt-0.5">SKU: {p.sku}</p>}
-            <div className="flex items-center justify-between mt-4">
-              <div>
-                <p className="text-xs text-slate-400">Giá bán</p>
-                <p className="font-semibold text-primary-400">{formatVND(p.sellPrice)}</p>
+      {viewMode === "card" ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {products.map((p) => (
+            <Link key={p._id} to={`/products/${p._id}`} className="card group relative hover:border-primary-500/40 transition-colors border border-transparent">
+              <div className="absolute top-3 right-3 flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity z-10">
+                <button type="button" onClick={(e) => { e.preventDefault(); openEditModal(p); }} className="text-slate-500 hover:text-blue-400 transition-colors" aria-label="Sửa sản phẩm">
+                  <Pencil size={16} />
+                </button>
+                <button type="button" onClick={(e) => { e.preventDefault(); remove(p._id); }} className="text-slate-500 hover:text-red-400 transition-colors" aria-label="Xóa sản phẩm">
+                  <Trash2 size={16} />
+                </button>
               </div>
-              <div className="text-right">
-                <p className="text-xs text-slate-400">Tồn kho</p>
-                <p className={`font-semibold ${p.stockQty <= p.minStock ? "text-amber-400" : "text-white"}`}>{p.stockQty}</p>
+              <div className="flex items-start justify-between">
+                <h3 className="font-semibold text-white">{p.name}</h3>
+                {p.stockQty <= p.minStock && <AlertTriangle size={16} className="text-amber-400 shrink-0" />}
               </div>
-            </div>
-          </Link>
-        ))}
-        {products.length === 0 && (
-          <p className="text-slate-500 text-sm col-span-full text-center py-12">Chưa có sản phẩm nào trong danh mục này.</p>
-        )}
-      </div>
+              {p.sku && <p className="text-xs text-slate-500 mt-0.5">SKU: {p.sku}</p>}
+              <div className="flex items-center justify-between mt-4">
+                <div>
+                  <p className="text-xs text-slate-400">Giá bán</p>
+                  <p className="font-semibold text-primary-400">{formatVND(p.sellPrice)}</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-xs text-slate-400">Tồn kho</p>
+                  <p className={`font-semibold ${p.stockQty <= p.minStock ? "text-amber-400" : "text-white"}`}>{p.stockQty}</p>
+                </div>
+              </div>
+            </Link>
+          ))}
+        </div>
+      ) : (
+        <div className="card overflow-x-auto p-0">
+          <table className="w-full min-w-[680px] text-left text-sm">
+            <thead className="border-b border-white/10 text-xs uppercase text-slate-500">
+              <tr>
+                <th className="px-4 py-3">Sản phẩm</th>
+                <th className="px-4 py-3">SKU</th>
+                <th className="px-4 py-3">Giá vốn</th>
+                <th className="px-4 py-3">Giá bán</th>
+                <th className="px-4 py-3">Tổng tiền nhập</th>
+                <th className="px-4 py-3">Tổng tiền đã bán</th>
+                <th className="px-4 py-3">Tồn kho</th>
+                <th className="px-4 py-3 text-right">Thao tác</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-white/5">
+              {products.map((p) => (
+                <tr key={p._id} className="text-slate-300 transition-colors hover:bg-white/5">
+                  <td className="px-4 py-3">
+                    <Link to={`/products/${p._id}`} className="flex items-center gap-2 font-medium text-white hover:text-primary-400">
+                      {p.name}
+                      {p.stockQty <= p.minStock && <AlertTriangle size={15} className="text-amber-400" />}
+                    </Link>
+                  </td>
+                  <td className="px-4 py-3 text-slate-500">{p.sku || "-"}</td>
+                  <td className="px-4 py-3">{formatVND(p.costPrice)}</td>
+                  <td className="px-4 py-3 font-medium text-primary-400">{formatVND(p.sellPrice)}</td>
+                  <td className="px-4 py-3">{formatVND(productTotals[String(p._id)]?.purchaseCost || 0)}</td>
+                  <td className="px-4 py-3 font-medium text-emerald-400">{formatVND(productTotals[String(p._id)]?.salesRevenue || 0)}</td>
+                  <td className={`px-4 py-3 font-medium ${p.stockQty <= p.minStock ? "text-amber-400" : "text-white"}`}>{p.stockQty}</td>
+                  <td className="px-4 py-3">
+                    <div className="flex justify-end gap-3">
+                      <button type="button" onClick={() => openEditModal(p)} className="text-slate-500 hover:text-blue-400" aria-label="Sửa sản phẩm" title="Sửa sản phẩm"><Pencil size={16} /></button>
+                      <button type="button" onClick={() => remove(p._id)} className="text-slate-500 hover:text-red-400" aria-label="Xóa sản phẩm" title="Xóa sản phẩm"><Trash2 size={16} /></button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {products.length === 0 && (
+        <p className="text-slate-500 text-sm col-span-full text-center py-12">Chưa có sản phẩm nào trong danh mục này.</p>
+      )}
 
       {modal && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" onClick={() => setModal(false)}>
