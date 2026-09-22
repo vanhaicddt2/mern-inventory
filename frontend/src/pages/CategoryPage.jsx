@@ -25,6 +25,7 @@ export default function CategoryPage() {
   const [statsOpen, setStatsOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [viewMode, setViewMode] = useState("card");
+  const [showSku, setShowSku] = useState(true);
   const [modal, setModal] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
   const [form, setForm] = useState({ name: "", sku: "", costPrice: "", sellPrice: "", stockQty: 0, minStock: 2 });
@@ -73,7 +74,7 @@ export default function CategoryPage() {
 
         const totals = {};
         categoryProducts.forEach((product) => {
-          totals[String(product._id)] = { purchaseCost: 0, salesRevenue: 0 };
+          totals[String(product._id)] = { purchaseCost: 0, salesRevenue: 0, expenseCost: 0 };
         });
         categoryPurchases.forEach((purchase) => {
           const pid = String(purchase?.product?._id || purchase?.product);
@@ -82,6 +83,10 @@ export default function CategoryPage() {
         categorySales.forEach((sale) => {
           const pid = String(sale?.product?._id || sale?.product);
           if (totals[pid]) totals[pid].salesRevenue += toNumber(sale.totalRevenue);
+        });
+        categoryExpenses.forEach((expense) => {
+          const pid = String(expense?.product?._id || expense?.product);
+          if (totals[pid]) totals[pid].expenseCost += toNumber(expense.amount);
         });
         setProductTotals(totals);
 
@@ -300,6 +305,17 @@ export default function CategoryPage() {
             <span className="hidden sm:inline">Bảng</span>
           </button>
         </div>
+        {viewMode === "table" && (
+          <label className="flex cursor-pointer items-center gap-2 text-sm text-slate-400">
+            <input
+              type="checkbox"
+              checked={!showSku}
+              onChange={(e) => setShowSku(!e.target.checked)}
+              className="h-4 w-4 accent-primary-500"
+            />
+            Ẩn SKU
+          </label>
+        )}
       </div>
 
       {viewMode === "card" ? (
@@ -334,15 +350,16 @@ export default function CategoryPage() {
         </div>
       ) : (
         <div className="card overflow-x-auto p-0">
-          <table className="w-full min-w-[680px] text-left text-sm">
+          <table className="w-full min-w-[760px] text-left text-sm">
             <thead className="border-b border-white/10 text-xs uppercase text-slate-500">
               <tr>
                 <th className="px-4 py-3">Sản phẩm</th>
-                <th className="px-4 py-3">SKU</th>
+                {showSku && <th className="px-4 py-3">SKU</th>}
                 <th className="px-4 py-3">Giá vốn</th>
                 <th className="px-4 py-3">Giá bán</th>
                 <th className="px-4 py-3">Tổng tiền nhập</th>
                 <th className="px-4 py-3">Tổng tiền đã bán</th>
+                <th className="px-4 py-3">Chi phí phát sinh</th>
                 <th className="px-4 py-3">Tồn kho</th>
                 <th className="px-4 py-3 text-right">Thao tác</th>
               </tr>
@@ -356,11 +373,12 @@ export default function CategoryPage() {
                       {p.stockQty <= p.minStock && <AlertTriangle size={15} className="text-amber-400" />}
                     </Link>
                   </td>
-                  <td className="px-4 py-3 text-slate-500">{p.sku || "-"}</td>
+                  {showSku && <td className="px-4 py-3 text-slate-500">{p.sku || "-"}</td>}
                   <td className="px-4 py-3">{formatVND(p.costPrice)}</td>
                   <td className="px-4 py-3 font-medium text-primary-400">{formatVND(p.sellPrice)}</td>
                   <td className="px-4 py-3">{formatVND(productTotals[String(p._id)]?.purchaseCost || 0)}</td>
                   <td className="px-4 py-3 font-medium text-emerald-400">{formatVND(productTotals[String(p._id)]?.salesRevenue || 0)}</td>
+                  <td className="px-4 py-3 text-amber-300">{formatVND(productTotals[String(p._id)]?.expenseCost || 0)}</td>
                   <td className={`px-4 py-3 font-medium ${p.stockQty <= p.minStock ? "text-amber-400" : "text-white"}`}>{p.stockQty}</td>
                   <td className="px-4 py-3">
                     <div className="flex justify-end gap-3">
