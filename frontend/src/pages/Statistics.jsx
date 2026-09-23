@@ -11,6 +11,7 @@ export default function Statistics() {
   const [monthly, setMonthly] = useState([]);
   const [yearly, setYearly] = useState([]);
   const [byCategory, setByCategory] = useState([]);
+  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
 
   useEffect(() => {
     api.get(`/stats/monthly?year=${year}`).then((res) => setMonthly(res.data));
@@ -23,6 +24,16 @@ export default function Statistics() {
 
   const totalRevenueYear = monthly.reduce((s, m) => s + m.revenue, 0);
   const totalProfitYear = monthly.reduce((s, m) => s + m.profit, 0);
+  const totalSaleProfitYear = monthly.reduce((s, m) => s + (m.saleProfit || 0), 0);
+  const selectedMonthData = monthly.find((month) => month.month === selectedMonth);
+  const selectedCategories = selectedMonthData?.categories || [];
+  const selectedCategoryTotals = selectedCategories.reduce((totals, category) => ({
+    revenue: totals.revenue + category.revenue,
+    saleProfit: totals.saleProfit + category.saleProfit,
+    purchaseCost: totals.purchaseCost + category.purchaseCost,
+    expense: totals.expense + category.expense,
+    profit: totals.profit + category.profit,
+  }), { revenue: 0, saleProfit: 0, purchaseCost: 0, expense: 0, profit: 0 });
 
   return (
     <div className="space-y-6">
@@ -36,10 +47,14 @@ export default function Statistics() {
         </select>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="card">
           <p className="text-xs text-slate-400 uppercase">Tổng doanh thu năm {year}</p>
           <p className="text-3xl font-bold text-white mt-1">{formatVND(totalRevenueYear)}</p>
+        </div>
+        <div className="card">
+          <p className="text-xs text-slate-400 uppercase">Tổng lãi bán hàng năm {year}</p>
+          <p className="text-3xl font-bold text-amber-400 mt-1">{formatVND(totalSaleProfitYear)}</p>
         </div>
         <div className="card">
           <p className="text-xs text-slate-400 uppercase">Tổng lợi nhuận năm {year}</p>
@@ -48,7 +63,7 @@ export default function Statistics() {
       </div>
 
       <div className="card">
-        <h2 className="font-semibold text-white mb-4">Doanh thu &amp; Lợi nhuận theo tháng</h2>
+        <h2 className="font-semibold text-white mb-4">Doanh thu, lãi bán hàng &amp; lợi nhuận theo tháng</h2>
         <ResponsiveContainer width="100%" height={300}>
           <BarChart data={monthly}>
             <CartesianGrid strokeDasharray="3 3" stroke="#334155" vertical={false} />
@@ -57,9 +72,70 @@ export default function Statistics() {
             <Tooltip contentStyle={{ background: "#1e293b", border: "1px solid #334155", borderRadius: 12 }} formatter={(v) => formatVND(v)} labelFormatter={monthLabel} />
             <Legend />
             <Bar dataKey="revenue" name="Doanh thu" fill="#6366f1" radius={[6, 6, 0, 0]} />
+            <Bar dataKey="saleProfit" name="Lãi bán hàng" fill="#f59e0b" radius={[6, 6, 0, 0]} />
             <Bar dataKey="profit" name="Lợi nhuận" fill="#22c55e" radius={[6, 6, 0, 0]} />
           </BarChart>
         </ResponsiveContainer>
+      </div>
+
+      <div className="card">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 className="font-semibold text-white">Lãi theo danh mục từng tháng</h2>
+            <p className="mt-1 text-xs text-slate-500">So sánh doanh thu, lãi bán hàng và các khoản chi của từng category.</p>
+          </div>
+          <select value={selectedMonth} onChange={(e) => setSelectedMonth(Number(e.target.value))} className="input-field w-36">
+            {Array.from({ length: 12 }, (_, index) => index + 1).map((month) => (
+              <option key={month} value={month}>{monthLabel(month)}</option>
+            ))}
+          </select>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[760px] text-left text-sm">
+            <thead className="border-b border-white/10 text-xs uppercase text-slate-500">
+              <tr>
+                <th className="px-3 py-3">Category</th>
+                <th className="px-3 py-3">Doanh thu</th>
+                <th className="px-3 py-3">Lãi bán hàng</th>
+                <th className="px-3 py-3">Chi nhập</th>
+                <th className="px-3 py-3">Chi phí</th>
+                <th className="px-3 py-3">Lợi nhuận ròng</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-white/5">
+              {selectedCategories.map((category) => (
+                <tr key={String(category.categoryId)} className="text-slate-300">
+                  <td className="px-3 py-3 font-medium text-white">
+                    <span className="mr-2 inline-block h-2.5 w-2.5 rounded-full" style={{ backgroundColor: category.color }} />
+                    {category.category}
+                  </td>
+                  <td className="px-3 py-3">{formatVND(category.revenue)}</td>
+                  <td className="px-3 py-3 text-amber-300">{formatVND(category.saleProfit)}</td>
+                  <td className="px-3 py-3">{formatVND(category.purchaseCost)}</td>
+                  <td className="px-3 py-3">{formatVND(category.expense)}</td>
+                  <td className={`px-3 py-3 font-semibold ${category.profit >= 0 ? "text-emerald-400" : "text-red-400"}`}>
+                    {formatVND(category.profit)}
+                  </td>
+                </tr>
+              ))}
+              {selectedCategories.length > 0 && (
+                <tr className="border-t border-white/10 bg-white/5 font-semibold text-white">
+                  <td className="px-3 py-3">Tổng cộng tất cả category</td>
+                  <td className="px-3 py-3">{formatVND(selectedCategoryTotals.revenue)}</td>
+                  <td className="px-3 py-3 text-amber-300">{formatVND(selectedCategoryTotals.saleProfit)}</td>
+                  <td className="px-3 py-3">{formatVND(selectedCategoryTotals.purchaseCost)}</td>
+                  <td className="px-3 py-3">{formatVND(selectedCategoryTotals.expense)}</td>
+                  <td className={`px-3 py-3 ${selectedCategoryTotals.profit >= 0 ? "text-emerald-400" : "text-red-400"}`}>
+                    {formatVND(selectedCategoryTotals.profit)}
+                  </td>
+                </tr>
+              )}
+              {!selectedCategories.length && (
+                <tr><td colSpan="6" className="px-3 py-8 text-center text-slate-500">Chưa có dữ liệu category.</td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -72,6 +148,7 @@ export default function Statistics() {
               <YAxis stroke="#64748b" fontSize={12} tickFormatter={(v) => `${v / 1000000}tr`} />
               <Tooltip contentStyle={{ background: "#1e293b", border: "1px solid #334155", borderRadius: 12 }} formatter={(v) => formatVND(v)} />
               <Line type="monotone" dataKey="revenue" name="Doanh thu" stroke="#6366f1" strokeWidth={2.5} dot={{ r: 4 }} />
+              <Line type="monotone" dataKey="saleProfit" name="Lãi bán hàng" stroke="#f59e0b" strokeWidth={2.5} dot={{ r: 4 }} />
               <Line type="monotone" dataKey="profit" name="Lợi nhuận" stroke="#22c55e" strokeWidth={2.5} dot={{ r: 4 }} />
             </LineChart>
           </ResponsiveContainer>

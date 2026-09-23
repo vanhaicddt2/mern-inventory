@@ -1,5 +1,6 @@
 import express from "express";
 import Expense from "../models/Expense.js";
+import Product from "../models/Product.js";
 import { protect } from "../middleware/auth.js";
 
 const router = express.Router();
@@ -14,8 +15,30 @@ router.get("/", async (req, res) => {
 
 router.post("/", async (req, res) => {
   try {
-    const expense = await Expense.create({ ...req.body, createdBy: req.user._id });
+    const product = await Product.findById(req.body.product);
+    if (!product) return res.status(404).json({ message: "Khong tim thay san pham" });
+    const expense = await Expense.create({
+      ...req.body,
+      name: req.body.name?.trim() || product.name,
+      createdBy: req.user._id,
+    });
     res.status(201).json(expense);
+  } catch (err) {
+    res.status(400).json({ message: err.message });
+  }
+});
+
+router.put("/:id", async (req, res) => {
+  try {
+    const expense = await Expense.findById(req.params.id);
+    if (!expense) return res.status(404).json({ message: "Khong tim thay khoan chi" });
+
+    expense.name = req.body.name?.trim() || expense.name;
+    expense.type = req.body.type || expense.type;
+    expense.amount = Number(req.body.amount ?? expense.amount);
+    expense.note = req.body.note || "";
+    await expense.save();
+    res.json(expense);
   } catch (err) {
     res.status(400).json({ message: err.message });
   }

@@ -47,24 +47,63 @@ router.get("/monthly", async (req, res) => {
   const start = new Date(year, 0, 1);
   const end = new Date(year + 1, 0, 1);
 
-  const [sales, purchases, expenses] = await Promise.all([
+  const [sales, purchases, expenses, categories, products] = await Promise.all([
     Sale.find({ date: { $gte: start, $lt: end } }),
     Purchase.find({ date: { $gte: start, $lt: end } }),
     Expense.find({ date: { $gte: start, $lt: end } }),
+    Category.find().select("name color"),
+    Product.find().select("_id category"),
   ]);
+
+  const categoryByProduct = new Map(products.map((item) => [String(item._id), String(item.category)]));
 
   const months = Array.from({ length: 12 }, (_, i) => ({
     month: i + 1,
     revenue: 0,
+    saleProfit: 0,
     purchaseCost: 0,
     expense: 0,
     profit: 0,
+    categories: categories.map((category) => ({
+      categoryId: category._id,
+      category: category.name,
+      color: category.color,
+      revenue: 0,
+      saleProfit: 0,
+      purchaseCost: 0,
+      expense: 0,
+      profit: 0,
+    })),
   }));
 
-  sales.forEach((s) => (months[new Date(s.date).getMonth()].revenue += s.totalRevenue));
-  purchases.forEach((p) => (months[new Date(p.date).getMonth()].purchaseCost += p.totalCost));
-  expenses.forEach((e) => (months[new Date(e.date).getMonth()].expense += e.amount));
-  months.forEach((m) => (m.profit = m.revenue - m.purchaseCost - m.expense));
+  sales.forEach((s) => {
+    const month = months[new Date(s.date).getMonth()];
+    const category = month.categories.find((item) => item.categoryId.toString() === categoryByProduct.get(String(s.product)));
+    month.revenue += s.totalRevenue;
+    month.saleProfit += s.profit || 0;
+    if (category) {
+      category.revenue += s.totalRevenue;
+      category.saleProfit += s.profit || 0;
+    }
+  });
+  purchases.forEach((p) => {
+    const month = months[new Date(p.date).getMonth()];
+    const category = month.categories.find((item) => item.categoryId.toString() === categoryByProduct.get(String(p.product)));
+    month.purchaseCost += p.totalCost;
+    if (category) category.purchaseCost += p.totalCost;
+  });
+  expenses.forEach((e) => {
+    const month = months[new Date(e.date).getMonth()];
+    const category = month.categories.find((item) => item.categoryId.toString() === categoryByProduct.get(String(e.product)));
+    month.expense += e.amount;
+    if (category) category.expense += e.amount;
+  });
+  months.forEach((month) => {
+    month.profit = month.revenue - month.purchaseCost - month.expense;
+    month.categories.forEach((category) => {
+      category.profit = category.revenue - category.purchaseCost - category.expense;
+    });
+  });
 
   res.json(months);
 });
@@ -84,9 +123,10 @@ router.get("/yearly", async (req, res) => {
         Expense.find({ date: { $gte: start, $lt: end } }),
       ]);
       const revenue = sales.reduce((s, x) => s + x.totalRevenue, 0);
+      const saleProfit = sales.reduce((s, x) => s + (x.profit || 0), 0);
       const purchaseCost = purchases.reduce((s, x) => s + x.totalCost, 0);
       const expense = expenses.reduce((s, x) => s + x.amount, 0);
-      return { year, revenue, purchaseCost, expense, profit: revenue - purchaseCost - expense };
+      return { year, revenue, saleProfit, purchaseCost, expense, profit: revenue - purchaseCost - expense };
     })
   );
 

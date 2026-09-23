@@ -3,6 +3,7 @@ import mongoose from "mongoose";
 const purchaseSchema = new mongoose.Schema(
   {
     product: { type: mongoose.Schema.Types.ObjectId, ref: "Product", required: true },
+    name: { type: String, default: "" },
     supplierId: { type: mongoose.Schema.Types.ObjectId, ref: "Supplier", default: null },
     quantity: { type: Number, required: true, min: 1 },
     unitCost: { type: Number, required: true, min: 0 },

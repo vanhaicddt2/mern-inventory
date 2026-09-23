@@ -55,15 +55,16 @@ export default function ProductDetail() {
     supplierId: "guest",
     note: "",
     unitPrice: "",
+    profit: "",
     customerId: "guest",
     type: "other",
     amount: "",
   });
 
   const [productForm, setProductForm] = useState({ name: "", sku: "", costPrice: "", sellPrice: "", stockQty: "", minStock: "" });
-  const [purchaseForm, setPurchaseForm] = useState({ quantity: "", unitCost: "", supplierId: "guest", note: "" });
-  const [saleForm, setSaleForm] = useState({ quantity: "", unitPrice: "", customerId: "guest", note: "" });
-  const [expenseForm, setExpenseForm] = useState({ type: "other", amount: "", note: "" });
+  const [purchaseForm, setPurchaseForm] = useState({ name: "", quantity: "", unitCost: "", supplierId: "guest", note: "" });
+  const [saleForm, setSaleForm] = useState({ name: "", quantity: "", unitPrice: "", profit: "", customerId: "guest", note: "" });
+  const [expenseForm, setExpenseForm] = useState({ name: "", type: "other", amount: "", note: "" });
 
   const load = () => api.get(`/products/${id}`).then((res) => setData(res.data));
   useEffect(() => { load(); }, [id]);
@@ -144,7 +145,7 @@ export default function ProductDetail() {
       unitCost: parseFormattedNumber(purchaseForm.unitCost),
       supplierId,
     });
-    setPurchaseForm({ quantity: "", unitCost: "", supplierId: "guest", note: "" });
+    setPurchaseForm({ name: "", quantity: "", unitCost: "", supplierId: "guest", note: "" });
     setSupplierMode("guest");
     setSupplierSearch("");
     setQuickSupplier({ name: "", phone: "", address: "" });
@@ -211,9 +212,10 @@ export default function ProductDetail() {
         ...saleForm,
         quantity: parseFormattedNumber(saleForm.quantity),
         unitPrice: parseFormattedNumber(saleForm.unitPrice),
+        profit: parseFormattedNumber(saleForm.profit),
         customerId,
       });
-      setSaleForm({ quantity: "", unitPrice: "", customerId: "guest", note: "" });
+      setSaleForm({ name: "", quantity: "", unitPrice: "", profit: "", customerId: "guest", note: "" });
       setCustomerMode("guest");
       setCustomerSearch("");
       setQuickCustomer({ name: "", phone: "", address: "" });
@@ -226,7 +228,7 @@ export default function ProductDetail() {
   const submitExpense = async (e) => {
     e.preventDefault();
     await api.post("/expenses", { product: id, ...expenseForm, amount: parseFormattedNumber(expenseForm.amount) });
-    setExpenseForm({ type: "other", amount: "", note: "" });
+    setExpenseForm({ name: "", type: "other", amount: "", note: "" });
     setModal(false);
     load();
   };
@@ -263,8 +265,9 @@ export default function ProductDetail() {
   const openEditTransactionModal = (type, item) => {
     if (type === "purchases") {
       setEditTxForm({
+        name: item.name || item.product?.name || product.name,
         quantity: String(item.quantity || ""),
-        unitCost: String(item.unitCost || ""),
+        unitCost: formatNumberInput(String(item.unitCost || "")),
         supplierId: item.supplierId?._id || item.supplierId || "guest",
         note: item.note || "",
         unitPrice: "",
@@ -275,11 +278,13 @@ export default function ProductDetail() {
     }
     if (type === "sales") {
       setEditTxForm({
+        name: item.name || item.product?.name || product.name,
         quantity: String(item.quantity || ""),
         unitCost: "",
         supplierId: "guest",
         note: item.note || "",
-        unitPrice: String(item.unitPrice || ""),
+        unitPrice: formatNumberInput(String(item.unitPrice || "")),
+        profit: formatNumberInput(String(item.profit ?? "")),
         customerId: item.customerId?._id || item.customerId || "guest",
         type: "other",
         amount: "",
@@ -287,6 +292,7 @@ export default function ProductDetail() {
     }
     if (type === "expenses") {
       setEditTxForm({
+        name: item.name || item.product?.name || product.name,
         quantity: "",
         unitCost: "",
         supplierId: "guest",
@@ -294,7 +300,7 @@ export default function ProductDetail() {
         unitPrice: "",
         customerId: "guest",
         type: item.type || "other",
-        amount: String(item.amount || ""),
+        amount: formatNumberInput(String(item.amount || "")),
       });
     }
     setEditTx({ type, item });
@@ -308,8 +314,9 @@ export default function ProductDetail() {
       if (editTx.type === "purchases") {
         await api.put(`/purchases/${editTx.item._id}`, {
           product: id,
+          name: editTxForm.name,
           quantity: Number(editTxForm.quantity || 0),
-          unitCost: Number(editTxForm.unitCost || 0),
+          unitCost: parseFormattedNumber(editTxForm.unitCost),
           supplierId: editTxForm.supplierId === "guest" ? null : editTxForm.supplierId,
           note: editTxForm.note,
         });
@@ -318,8 +325,10 @@ export default function ProductDetail() {
       if (editTx.type === "sales") {
         await api.put(`/sales/${editTx.item._id}`, {
           product: id,
+          name: editTxForm.name,
           quantity: Number(editTxForm.quantity || 0),
-          unitPrice: Number(editTxForm.unitPrice || 0),
+          unitPrice: parseFormattedNumber(editTxForm.unitPrice),
+          profit: parseFormattedNumber(editTxForm.profit),
           customerId: editTxForm.customerId === "guest" ? null : editTxForm.customerId,
           note: editTxForm.note,
         });
@@ -327,8 +336,9 @@ export default function ProductDetail() {
 
       if (editTx.type === "expenses") {
         await api.put(`/expenses/${editTx.item._id}`, {
+          name: editTxForm.name,
           type: editTxForm.type,
-          amount: Number(editTxForm.amount || 0),
+          amount: parseFormattedNumber(editTxForm.amount),
           note: editTxForm.note,
         });
       }
@@ -348,6 +358,7 @@ export default function ProductDetail() {
 
   if (!data) return <div className="text-slate-400">Đang tải...</div>;
   const { product, purchases, sales, expenses, summary } = data;
+  const purchaseNames = [...new Set(purchases.map((purchase) => purchase.name || purchase.product?.name).filter(Boolean))];
   const isOutOfStock = product.stockQty <= 0;
   const filteredCustomers = customers.filter((c) => {
     if (!customerSearch.trim()) return true;
@@ -375,7 +386,7 @@ export default function ProductDetail() {
           <button onClick={openEditProductModal} className="btn-secondary flex h-11 flex-1 items-center justify-center gap-2 px-3 sm:h-auto sm:flex-none sm:px-4" title="Sửa sản phẩm" aria-label="Sửa sản phẩm">
             <Pencil size={18} /> <span className="hidden sm:inline">Sửa</span>
           </button>
-          <button onClick={() => setModal(true)} className="btn-primary flex h-11 flex-1 items-center justify-center gap-2 px-3 sm:h-auto sm:flex-none sm:px-4" title="Thêm giao dịch" aria-label="Thêm giao dịch">
+          <button onClick={() => { setPurchaseForm((prev) => ({ ...prev, name: product.name })); setSaleForm((prev) => ({ ...prev, name: product.name })); setExpenseForm((prev) => ({ ...prev, name: product.name })); setModal(true); }} className="btn-primary flex h-11 flex-1 items-center justify-center gap-2 px-3 sm:h-auto sm:flex-none sm:px-4" title="Thêm giao dịch" aria-label="Thêm giao dịch">
             <Plus size={18} /> <span className="hidden sm:inline">Thêm giao dịch</span>
           </button>
         </div>
@@ -437,12 +448,13 @@ export default function ProductDetail() {
             rows={purchases}
             viewMode={transactionView}
             empty="Chưa có phiếu nhập nào"
-            columns={["Ngày", "Số lượng", "Đơn giá", "Thành tiền", "Nhà cung cấp", "", ""]}
+            columns={["Ngày", "Tên sản phẩm", "Số lượng", "Đơn giá", "Thành tiền", "Nhà cung cấp", "", ""]}
             render={(r) => [
               <div>
                 <div>{formatDate(r.date)}</div>
                 {r.note && <div className="text-[10px] text-slate-500 mt-1">{r.note}</div>}
               </div>,
+              r.name || r.product?.name || product.name,
               r.quantity,
               formatVND(r.unitCost),
               formatVND(r.totalCost),
@@ -466,15 +478,17 @@ export default function ProductDetail() {
             rows={sales}
             viewMode={transactionView}
             empty="Chưa có đơn bán nào"
-            columns={["Ngày", "Số lượng", "Đơn giá", "Doanh thu", "Khách hàng", "", ""]}
+            columns={["Ngày", "Tên sản phẩm", "Số lượng", "Đơn giá", "Doanh thu", "Lãi", "Khách hàng", "", ""]}
             render={(r) => [
               <div>
                 <div>{formatDate(r.date)}</div>
                 {r.note && <div className="text-[10px] text-slate-500 mt-1">{r.note}</div>}
               </div>,
+              r.name || r.product?.name || product.name,
               r.quantity,
               formatVND(r.unitPrice),
               formatVND(r.totalRevenue),
+              formatVND(r.profit || 0),
               r.customer || "-",
               <button onClick={() => openEditTransactionModal("sales", r)} className="text-slate-500 hover:text-blue-400"><Pencil size={15} /></button>,
               <button onClick={() => removeItem("sales", r._id)} className="text-slate-500 hover:text-red-400"><Trash2 size={15} /></button>,
@@ -483,7 +497,7 @@ export default function ProductDetail() {
               <TransactionCard
                 title="Đơn bán"
                 date={r.date}
-                details={["Số lượng", r.quantity, "Đơn giá", formatVND(r.unitPrice), "Doanh thu", formatVND(r.totalRevenue), "Khách hàng", r.customer || "-"]}
+                details={["Số lượng", r.quantity, "Đơn giá", formatVND(r.unitPrice), "Doanh thu", formatVND(r.totalRevenue), "Lãi", formatVND(r.profit || 0), "Khách hàng", r.customer || "-"]}
                 note={r.note}
                 actions={[<button onClick={() => openEditTransactionModal("sales", r)} className="text-slate-400 hover:text-blue-400" aria-label="Sửa đơn bán"><Pencil size={16} /></button>, <button onClick={() => removeItem("sales", r._id)} className="text-slate-400 hover:text-red-400" aria-label="Xóa đơn bán"><Trash2 size={16} /></button>]}
               />
@@ -495,12 +509,13 @@ export default function ProductDetail() {
             rows={expenses}
             viewMode={transactionView}
             empty="Chưa có khoản chi nào"
-            columns={["Ngày", "Loại chi phí", "Số tiền", "Ghi chú", "", ""]}
+            columns={["Ngày", "Tên sản phẩm", "Loại chi phí", "Số tiền", "Ghi chú", "", ""]}
             render={(r) => [
               <div>
                 <div>{formatDate(r.date)}</div>
                 {r.note && <div className="text-[10px] text-slate-500 mt-1">{r.note}</div>}
               </div>,
+              r.name || r.product?.name || product.name,
               EXPENSE_TYPES[r.type],
               formatVND(r.amount),
               r.note || "-",
@@ -532,9 +547,10 @@ export default function ProductDetail() {
 
             {editTx.type === "purchases" && (
               <form onSubmit={submitEditTransaction} className="space-y-3">
+                <input required placeholder="Tên sản phẩm" className="input-field" value={editTxForm.name || ""} onChange={(e) => setEditTxForm({ ...editTxForm, name: e.target.value })} />
                 <div className="grid grid-cols-2 gap-3">
                   <input required type="text" inputMode="numeric" placeholder="Số lượng" className="input-field" value={editTxForm.quantity} onChange={(e) => setEditTxForm({ ...editTxForm, quantity: e.target.value.replace(/\D/g, "") })} />
-                  <input required type="text" inputMode="numeric" placeholder="Đơn giá nhập" className="input-field" value={editTxForm.unitCost} onChange={(e) => setEditTxForm({ ...editTxForm, unitCost: e.target.value.replace(/\D/g, "") })} />
+                  <input required type="text" inputMode="numeric" placeholder="Đơn giá nhập" className="input-field" value={editTxForm.unitCost} onChange={(e) => setEditTxForm({ ...editTxForm, unitCost: formatNumberInput(e.target.value) })} />
                 </div>
                 <select className="input-field" value={editTxForm.supplierId} onChange={(e) => setEditTxForm({ ...editTxForm, supplierId: e.target.value })}>
                   <option value="guest">NCC lẻ</option>
@@ -547,9 +563,11 @@ export default function ProductDetail() {
 
             {editTx.type === "sales" && (
               <form onSubmit={submitEditTransaction} className="space-y-3">
+                <input required placeholder="Tên sản phẩm" className="input-field" value={editTxForm.name || ""} onChange={(e) => setEditTxForm({ ...editTxForm, name: e.target.value })} />
                 <div className="grid grid-cols-2 gap-3">
                   <input required type="text" inputMode="numeric" placeholder="Số lượng" className="input-field" value={editTxForm.quantity} onChange={(e) => setEditTxForm({ ...editTxForm, quantity: e.target.value.replace(/\D/g, "") })} />
-                  <input required type="text" inputMode="numeric" placeholder="Đơn giá bán" className="input-field" value={editTxForm.unitPrice} onChange={(e) => setEditTxForm({ ...editTxForm, unitPrice: e.target.value.replace(/\D/g, "") })} />
+                  <input required type="text" inputMode="numeric" placeholder="Đơn giá bán" className="input-field" value={editTxForm.unitPrice} onChange={(e) => setEditTxForm({ ...editTxForm, unitPrice: formatNumberInput(e.target.value) })} />
+                  <input required type="text" inputMode="numeric" placeholder="Lãi" className="input-field" value={editTxForm.profit || ""} onChange={(e) => setEditTxForm({ ...editTxForm, profit: formatNumberInput(e.target.value) })} />
                 </div>
                 <select className="input-field" value={editTxForm.customerId} onChange={(e) => setEditTxForm({ ...editTxForm, customerId: e.target.value })}>
                   <option value="guest">Khách lẻ</option>
@@ -562,10 +580,11 @@ export default function ProductDetail() {
 
             {editTx.type === "expenses" && (
               <form onSubmit={submitEditTransaction} className="space-y-3">
+                <input required placeholder="Tên sản phẩm" className="input-field" value={editTxForm.name || ""} onChange={(e) => setEditTxForm({ ...editTxForm, name: e.target.value })} />
                 <select className="input-field" value={editTxForm.type} onChange={(e) => setEditTxForm({ ...editTxForm, type: e.target.value })}>
                   {Object.entries(EXPENSE_TYPES).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
                 </select>
-                <input required type="text" inputMode="numeric" placeholder="Số tiền" className="input-field" value={editTxForm.amount} onChange={(e) => setEditTxForm({ ...editTxForm, amount: e.target.value.replace(/\D/g, "") })} />
+                <input required type="text" inputMode="numeric" placeholder="Số tiền" className="input-field" value={editTxForm.amount} onChange={(e) => setEditTxForm({ ...editTxForm, amount: formatNumberInput(e.target.value) })} />
                 <input placeholder="Ghi chú" className="input-field" value={editTxForm.note} onChange={(e) => setEditTxForm({ ...editTxForm, note: e.target.value })} />
                 <button type="submit" className="btn-primary w-full">Lưu thay đổi</button>
               </form>
@@ -630,6 +649,7 @@ export default function ProductDetail() {
 
             {tab === "purchases" && (
               <form onSubmit={submitPurchase} className="space-y-3">
+                <input required placeholder="Tên sản phẩm" className="input-field" value={purchaseForm.name} onChange={(e) => setPurchaseForm({ ...purchaseForm, name: e.target.value })} />
                 <div className="grid grid-cols-3 gap-2">
                   <button
                     type="button"
@@ -712,6 +732,7 @@ export default function ProductDetail() {
             )}
             {tab === "sales" && (
               <form onSubmit={submitSale} className="space-y-3">
+                <input required list="purchase-name-options" placeholder="Tên sản phẩm" className="input-field" value={saleForm.name} onChange={(e) => setSaleForm({ ...saleForm, name: e.target.value })} />
                 <div className="grid grid-cols-3 gap-2">
                   <button
                     type="button"
@@ -787,6 +808,7 @@ export default function ProductDetail() {
                 <div className="grid grid-cols-2 gap-3">
                   <input required type="text" inputMode="numeric" placeholder="Số lượng" className="input-field" value={saleForm.quantity} onChange={(e) => setSaleForm({ ...saleForm, quantity: formatNumberInput(e.target.value) })} />
                   <input required type="text" inputMode="numeric" placeholder="Đơn giá bán" className="input-field" value={saleForm.unitPrice} onChange={(e) => setSaleForm({ ...saleForm, unitPrice: formatNumberInput(e.target.value) })} />
+                  <input required type="text" inputMode="numeric" placeholder="Lãi" className="input-field" value={saleForm.profit} onChange={(e) => setSaleForm({ ...saleForm, profit: formatNumberInput(e.target.value) })} />
                 </div>
                 <input placeholder="Ghi chú" className="input-field" value={saleForm.note} onChange={(e) => setSaleForm({ ...saleForm, note: e.target.value })} />
                 <button type="submit" className="btn-primary w-full">Lưu đơn bán</button>
@@ -794,6 +816,7 @@ export default function ProductDetail() {
             )}
             {tab === "expenses" && (
               <form onSubmit={submitExpense} className="space-y-3">
+                <input required list="purchase-name-options" placeholder="Tên sản phẩm" className="input-field" value={expenseForm.name} onChange={(e) => setExpenseForm({ ...expenseForm, name: e.target.value })} />
                 <select className="input-field" value={expenseForm.type} onChange={(e) => setExpenseForm({ ...expenseForm, type: e.target.value })}>
                   {Object.entries(EXPENSE_TYPES).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
                 </select>
@@ -802,6 +825,9 @@ export default function ProductDetail() {
                 <button type="submit" className="btn-primary w-full">Lưu khoản chi</button>
               </form>
             )}
+            <datalist id="purchase-name-options">
+              {purchaseNames.map((name) => <option key={name} value={name} />)}
+            </datalist>
           </div>
         </div>
       )}

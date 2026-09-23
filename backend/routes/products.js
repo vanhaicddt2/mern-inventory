@@ -24,7 +24,7 @@ router.get("/:id", async (req, res) => {
   if (!product) return res.status(404).json({ message: "Khong tim thay san pham" });
 
   const [purchases, sales, expenses] = await Promise.all([
-    Purchase.find({ product: product._id }).sort("-date"),
+    Purchase.find({ product: product._id }).populate("product", "name").sort("-date"),
     Sale.find({ product: product._id }).sort("-date"),
     Expense.find({ product: product._id }).sort("-date"),
   ]);

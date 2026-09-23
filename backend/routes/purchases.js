@@ -17,8 +17,10 @@ router.get("/", async (req, res) => {
 // Nhap hang: tang ton kho + cap nhat gia von binh quan
 router.post("/", async (req, res) => {
   try {
-    const { product, quantity, unitCost, supplier, supplierId, date, note } = req.body;
+    const { product, name, quantity, unitCost, supplier, supplierId, date, note } = req.body;
     const totalCost = quantity * unitCost;
+    const p = await Product.findById(product);
+    if (!p) return res.status(404).json({ message: "Khong tim thay san pham" });
 
     let resolvedSupplierId = null;
     let resolvedSupplierName = "NCC lẻ";
@@ -34,6 +36,7 @@ router.post("/", async (req, res) => {
 
     const purchase = await Purchase.create({
       product,
+      name: name?.trim() || p.name,
       supplierId: resolvedSupplierId,
       quantity,
       unitCost,
@@ -44,18 +47,15 @@ router.post("/", async (req, res) => {
       createdBy: req.user._id,
     });
 
-    const p = await Product.findById(product);
-    if (p) {
-      const newStock = p.stockQty + Number(quantity);
-      // gia von binh quan gia quyen
-      const newAvgCost =
-        newStock > 0
-          ? (p.costPrice * p.stockQty + totalCost) / newStock
-          : unitCost;
-      p.stockQty = newStock;
-      p.costPrice = Math.round(newAvgCost);
-      await p.save();
-    }
+    const newStock = p.stockQty + Number(quantity);
+    // gia von binh quan gia quyen
+    const newAvgCost =
+      newStock > 0
+        ? (p.costPrice * p.stockQty + totalCost) / newStock
+        : unitCost;
+    p.stockQty = newStock;
+    p.costPrice = Math.round(newAvgCost);
+    await p.save();
 
     res.status(201).json(purchase);
   } catch (err) {
@@ -68,7 +68,7 @@ router.put("/:id", async (req, res) => {
     const purchase = await Purchase.findById(req.params.id);
     if (!purchase) return res.status(404).json({ message: "Khong tim thay phieu nhap" });
 
-    const { quantity, unitCost, supplierId, supplier, date, note } = req.body;
+    const { name, quantity, unitCost, supplierId, supplier, date, note } = req.body;
     const nextQuantity = Number(quantity);
     const nextUnitCost = Number(unitCost);
 
@@ -101,6 +101,7 @@ router.put("/:id", async (req, res) => {
     purchase.quantity = nextQuantity;
     purchase.unitCost = nextUnitCost;
     purchase.totalCost = nextQuantity * nextUnitCost;
+    purchase.name = name?.trim() || product.name;
     purchase.supplierId = resolvedSupplierId;
     purchase.supplier = resolvedSupplierName;
     if (date) purchase.date = date;
