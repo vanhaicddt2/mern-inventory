@@ -9,7 +9,7 @@ router.use(protect);
 
 router.get("/", async (req, res) => {
   const { product } = req.query;
-  const filter = product ? { product } : {};
+  const filter = { owner: req.user._id, ...(product ? { product } : {}) };
   const sales = await Sale.find(filter).populate("product", "name").populate("customerId", "name phone email").sort("-date");
   res.json(sales);
 });
@@ -17,8 +17,10 @@ router.get("/", async (req, res) => {
 router.post("/", async (req, res) => {
   try {
     const { product, name, quantity, unitPrice, profit, customer, customerId, date, note } = req.body;
-    const p = await Product.findById(product);
+    const p = await Product.findOne({ _id: product, owner: req.user._id });
     if (!p) return res.status(404).json({ message: "Khong tim thay san pham" });
+    if (p.stockQty <= 0)
+      return res.status(400).json({ message: "San pham da het ton kho, khong the tao don ban moi" });
     if (p.stockQty < quantity)
       return res.status(400).json({ message: `Khong du hang ton kho (con ${p.stockQty})` });
 
@@ -26,7 +28,7 @@ router.post("/", async (req, res) => {
     let resolvedCustomerName = "Khách lẻ";
 
     if (customerId) {
-      const foundCustomer = await Customer.findById(customerId);
+      const foundCustomer = await Customer.findOne({ _id: customerId, owner: req.user._id });
       if (!foundCustomer) return res.status(404).json({ message: "Khong tim thay khach hang" });
       resolvedCustomerId = foundCustomer._id;
       resolvedCustomerName = foundCustomer.name;
@@ -36,6 +38,7 @@ router.post("/", async (req, res) => {
 
     const totalRevenue = quantity * unitPrice;
     const sale = await Sale.create({
+      owner: req.user._id,
       product,
       name: name?.trim() || p.name,
       customerId: resolvedCustomerId,
@@ -60,7 +63,7 @@ router.post("/", async (req, res) => {
 
 router.put("/:id", async (req, res) => {
   try {
-    const sale = await Sale.findById(req.params.id);
+    const sale = await Sale.findOne({ _id: req.params.id, owner: req.user._id });
     if (!sale) return res.status(404).json({ message: "Khong tim thay don ban" });
 
     sale.name = req.body.name?.trim() || sale.name;
@@ -69,7 +72,7 @@ router.put("/:id", async (req, res) => {
     if (req.body.customerId !== undefined) {
       sale.customerId = req.body.customerId || null;
       if (req.body.customerId) {
-        const customer = await Customer.findById(req.body.customerId);
+        const customer = await Customer.findOne({ _id: req.body.customerId, owner: req.user._id });
         if (!customer) return res.status(404).json({ message: "Khong tim thay khach hang" });
         sale.customer = customer.name;
       } else {
@@ -85,9 +88,9 @@ router.put("/:id", async (req, res) => {
 });
 
 router.delete("/:id", async (req, res) => {
-  const sale = await Sale.findById(req.params.id);
+  const sale = await Sale.findOne({ _id: req.params.id, owner: req.user._id });
   if (!sale) return res.status(404).json({ message: "Khong tim thay" });
-  const p = await Product.findById(sale.product);
+  const p = await Product.findOne({ _id: sale.product, owner: req.user._id });
   if (p) {
     p.stockQty += sale.quantity;
     await p.save();

@@ -76,12 +76,6 @@ export default function ProductDetail() {
   }, []);
 
   useEffect(() => {
-    if (data?.product?.stockQty <= 0 && tab === "sales") {
-      setTab("purchases");
-    }
-  }, [data, tab]);
-
-  useEffect(() => {
     const mediaQuery = window.matchMedia("(max-width: 639px)");
     const updateView = (event) => setTransactionView(event.matches ? "card" : "table");
     mediaQuery.addEventListener("change", updateView);
@@ -386,7 +380,7 @@ export default function ProductDetail() {
           <button onClick={openEditProductModal} className="btn-secondary flex h-11 flex-1 items-center justify-center gap-2 px-3 sm:h-auto sm:flex-none sm:px-4" title="Sửa sản phẩm" aria-label="Sửa sản phẩm">
             <Pencil size={18} /> <span className="hidden sm:inline">Sửa</span>
           </button>
-          <button onClick={() => { setPurchaseForm((prev) => ({ ...prev, name: product.name })); setSaleForm((prev) => ({ ...prev, name: product.name })); setExpenseForm((prev) => ({ ...prev, name: product.name })); setModal(true); }} className="btn-primary flex h-11 flex-1 items-center justify-center gap-2 px-3 sm:h-auto sm:flex-none sm:px-4" title="Thêm giao dịch" aria-label="Thêm giao dịch">
+          <button onClick={() => { setPurchaseForm((prev) => ({ ...prev, name: product.name })); setSaleForm((prev) => ({ ...prev, name: product.name })); setExpenseForm((prev) => ({ ...prev, name: product.name })); if (isOutOfStock && tab === "sales") setTab("purchases"); setModal(true); }} className="btn-primary flex h-11 flex-1 items-center justify-center gap-2 px-3 sm:h-auto sm:flex-none sm:px-4" title="Thêm giao dịch" aria-label="Thêm giao dịch">
             <Plus size={18} /> <span className="hidden sm:inline">Thêm giao dịch</span>
           </button>
         </div>
@@ -417,16 +411,12 @@ export default function ProductDetail() {
               <button
                 key={t.key}
                 onClick={() => {
-                  if (t.key === "sales" && isOutOfStock) return;
                   setTab(t.key);
                 }}
-                disabled={t.key === "sales" && isOutOfStock}
                 className={`shrink-0 whitespace-nowrap rounded-xl px-3 py-2 text-sm font-medium transition-colors sm:px-4 ${
                   tab === t.key
                     ? "bg-primary-600/20 text-primary-300"
-                    : t.key === "sales" && isOutOfStock
-                      ? "text-slate-600 cursor-not-allowed"
-                      : "text-slate-400 hover:text-white"
+                    : "text-slate-400 hover:text-white"
                 }`}
               >
                 {t.label}
@@ -648,7 +638,7 @@ export default function ProductDetail() {
                 </button>
               ))}
             </div>
-            {isOutOfStock && <p className="text-xs text-amber-400 mb-3">Sản phẩm đã hết tồn kho. Mục Bán hàng đang tạm tắt.</p>}
+            {isOutOfStock && <p className="text-xs text-amber-400 mb-3">Sản phẩm đã hết tồn kho. Không thể tạo đơn bán mới.</p>}
 
             {tab === "purchases" && (
               <form onSubmit={submitPurchase} className="space-y-3">

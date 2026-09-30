@@ -8,7 +8,7 @@ router.use(protect);
 
 router.get("/", async (req, res) => {
   const { search } = req.query;
-  const filter = { isRetailGuest: { $ne: true } };
+  const filter = { owner: req.user._id, isRetailGuest: { $ne: true } };
 
   if (search) {
     const regex = new RegExp(search, "i");
@@ -18,7 +18,7 @@ router.get("/", async (req, res) => {
   const customers = await Customer.find(filter).sort("name").lean();
   const customerIds = customers.map((customer) => customer._id);
   const salesStats = await Sale.aggregate([
-    { $match: { customerId: { $in: customerIds } } },
+    { $match: { owner: req.user._id, customerId: { $in: customerIds } } },
     {
       $group: {
         _id: "$customerId",
@@ -37,10 +37,10 @@ router.get("/", async (req, res) => {
 });
 
 router.get("/:id/history", async (req, res) => {
-  const customer = await Customer.findById(req.params.id).select("name");
+  const customer = await Customer.findOne({ _id: req.params.id, owner: req.user._id }).select("name");
   if (!customer) return res.status(404).json({ message: "Khong tim thay khach hang" });
 
-  const sales = await Sale.find({ customerId: customer._id })
+  const sales = await Sale.find({ customerId: customer._id, owner: req.user._id })
     .populate("product", "name sku")
     .sort("-date")
     .lean();
@@ -53,6 +53,7 @@ router.post("/", async (req, res) => {
     if (!name?.trim()) return res.status(400).json({ message: "Ten khach hang la bat buoc" });
 
     const customer = await Customer.create({
+      owner: req.user._id,
       name: name.trim(),
       phone: String(phone || "").trim(),
       email: String(email || "").trim().toLowerCase(),
@@ -76,10 +77,10 @@ router.put("/:id", async (req, res) => {
     if (address !== undefined) update.address = String(address).trim();
     if (note !== undefined) update.note = String(note).trim();
 
-    const customer = await Customer.findByIdAndUpdate(req.params.id, update, { new: true });
+    const customer = await Customer.findOneAndUpdate({ _id: req.params.id, owner: req.user._id }, update, { new: true });
     if (!customer) return res.status(404).json({ message: "Khong tim thay khach hang" });
 
-    await Sale.updateMany({ customerId: customer._id }, { $set: { customer: customer.name } });
+    await Sale.updateMany({ customerId: customer._id, owner: req.user._id }, { $set: { customer: customer.name } });
 
     res.json(customer);
   } catch (err) {
@@ -88,10 +89,10 @@ router.put("/:id", async (req, res) => {
 });
 
 router.delete("/:id", async (req, res) => {
-  const customer = await Customer.findById(req.params.id);
+  const customer = await Customer.findOne({ _id: req.params.id, owner: req.user._id });
   if (!customer) return res.status(404).json({ message: "Khong tim thay khach hang" });
 
-  await Sale.updateMany({ customerId: customer._id }, { $set: { customerId: null, customer: "Khách lẻ" } });
+  await Sale.updateMany({ customerId: customer._id, owner: req.user._id }, { $set: { customerId: null, customer: "Khách lẻ" } });
   await customer.deleteOne();
 
   res.json({ message: "Da xoa khach hang" });

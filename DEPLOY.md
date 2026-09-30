@@ -18,6 +18,18 @@ nano backend/.env
 # Điền MONGODB_URI, JWT_SECRET, NODE_ENV=production
 ```
 
+## MIGRATE DỮ LIỆU KHO CŨ
+
+Trước khi khởi động phiên bản mới lần đầu, chạy lệnh sau trong thư mục `backend`.
+Lệnh gán dữ liệu hiện có (chưa có chủ sở hữu) cho tài khoản admin được tạo đầu tiên,
+đồng thời thay các unique index toàn hệ thống bằng unique index theo từng tài khoản.
+
+```bash
+cd backend
+npm run migrate:inventory-owners
+cd ..
+```
+
 ## 3. BUILD FRONTEND
 
 ```bash

@@ -8,17 +8,18 @@ router.use(protect);
 
 router.get("/", async (req, res) => {
   const { product } = req.query;
-  const filter = product ? { product } : {};
+  const filter = { owner: req.user._id, ...(product ? { product } : {}) };
   const expenses = await Expense.find(filter).populate("product", "name").sort("-date");
   res.json(expenses);
 });
 
 router.post("/", async (req, res) => {
   try {
-    const product = await Product.findById(req.body.product);
+    const product = await Product.findOne({ _id: req.body.product, owner: req.user._id });
     if (!product) return res.status(404).json({ message: "Khong tim thay san pham" });
     const expense = await Expense.create({
       ...req.body,
+      owner: req.user._id,
       name: req.body.name?.trim() || product.name,
       createdBy: req.user._id,
     });
@@ -30,7 +31,7 @@ router.post("/", async (req, res) => {
 
 router.put("/:id", async (req, res) => {
   try {
-    const expense = await Expense.findById(req.params.id);
+    const expense = await Expense.findOne({ _id: req.params.id, owner: req.user._id });
     if (!expense) return res.status(404).json({ message: "Khong tim thay khoan chi" });
 
     expense.name = req.body.name?.trim() || expense.name;
@@ -45,7 +46,8 @@ router.put("/:id", async (req, res) => {
 });
 
 router.delete("/:id", async (req, res) => {
-  await Expense.findByIdAndDelete(req.params.id);
+  const expense = await Expense.findOneAndDelete({ _id: req.params.id, owner: req.user._id });
+  if (!expense) return res.status(404).json({ message: "Khong tim thay khoan chi" });
   res.json({ message: "Da xoa khoan chi" });
 });
 

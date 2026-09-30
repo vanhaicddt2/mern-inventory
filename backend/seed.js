@@ -3,6 +3,7 @@ import dotenv from "dotenv";
 import mongoose from "mongoose";
 import connectDB from "./config/db.js";
 import Category from "./models/Category.js";
+import User from "./models/User.js";
 
 dotenv.config();
 
@@ -14,10 +15,12 @@ const defaultCategories = [
 
 const run = async () => {
   await connectDB();
+  const owner = await User.findOne({ role: "admin" }).sort("createdAt");
+  if (!owner) throw new Error("Hay tao tai khoan admin truoc khi seed danh muc");
   for (const cat of defaultCategories) {
-    const exists = await Category.findOne({ slug: cat.slug });
+    const exists = await Category.findOne({ slug: cat.slug, owner: owner._id });
     if (!exists) {
-      await Category.create(cat);
+      await Category.create({ ...cat, owner: owner._id });
       console.log(`✅ Đã tạo danh mục: ${cat.name}`);
     } else {
       console.log(`⏭️  Danh mục đã tồn tại: ${cat.name}`);

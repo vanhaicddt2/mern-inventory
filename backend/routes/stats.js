@@ -16,12 +16,12 @@ router.get("/overview", async (req, res) => {
   const end = new Date(year + 1, 0, 1);
 
   const [sales, purchases, expenses, productCount, categoryCount, lowStock] = await Promise.all([
-    Sale.find({ date: { $gte: start, $lt: end } }),
-    Purchase.find({ date: { $gte: start, $lt: end } }),
-    Expense.find({ date: { $gte: start, $lt: end } }),
-    Product.countDocuments(),
-    Category.countDocuments(),
-    Product.find({ $expr: { $lte: ["$stockQty", "$minStock"] } }).select("name stockQty minStock"),
+    Sale.find({ owner: req.user._id, date: { $gte: start, $lt: end } }),
+    Purchase.find({ owner: req.user._id, date: { $gte: start, $lt: end } }),
+    Expense.find({ owner: req.user._id, date: { $gte: start, $lt: end } }),
+    Product.countDocuments({ owner: req.user._id }),
+    Category.countDocuments({ owner: req.user._id }),
+    Product.find({ owner: req.user._id, $expr: { $lte: ["$stockQty", "$minStock"] } }).select("name stockQty minStock"),
   ]);
 
   const totalRevenue = sales.reduce((s, x) => s + x.totalRevenue, 0);
@@ -48,11 +48,11 @@ router.get("/monthly", async (req, res) => {
   const end = new Date(year + 1, 0, 1);
 
   const [sales, purchases, expenses, categories, products] = await Promise.all([
-    Sale.find({ date: { $gte: start, $lt: end } }),
-    Purchase.find({ date: { $gte: start, $lt: end } }),
-    Expense.find({ date: { $gte: start, $lt: end } }),
-    Category.find().select("name color"),
-    Product.find().select("_id category"),
+    Sale.find({ owner: req.user._id, date: { $gte: start, $lt: end } }),
+    Purchase.find({ owner: req.user._id, date: { $gte: start, $lt: end } }),
+    Expense.find({ owner: req.user._id, date: { $gte: start, $lt: end } }),
+    Category.find({ owner: req.user._id }).select("name color"),
+    Product.find({ owner: req.user._id }).select("_id category"),
   ]);
 
   const categoryByProduct = new Map(products.map((item) => [String(item._id), String(item.category)]));
@@ -118,9 +118,9 @@ router.get("/yearly", async (req, res) => {
       const start = new Date(year, 0, 1);
       const end = new Date(year + 1, 0, 1);
       const [sales, purchases, expenses] = await Promise.all([
-        Sale.find({ date: { $gte: start, $lt: end } }),
-        Purchase.find({ date: { $gte: start, $lt: end } }),
-        Expense.find({ date: { $gte: start, $lt: end } }),
+        Sale.find({ owner: req.user._id, date: { $gte: start, $lt: end } }),
+        Purchase.find({ owner: req.user._id, date: { $gte: start, $lt: end } }),
+        Expense.find({ owner: req.user._id, date: { $gte: start, $lt: end } }),
       ]);
       const revenue = sales.reduce((s, x) => s + x.totalRevenue, 0);
       const saleProfit = sales.reduce((s, x) => s + (x.profit || 0), 0);
@@ -139,12 +139,12 @@ router.get("/by-category", async (req, res) => {
   const start = new Date(year, 0, 1);
   const end = new Date(year + 1, 0, 1);
 
-  const categories = await Category.find();
+  const categories = await Category.find({ owner: req.user._id });
   const results = await Promise.all(
     categories.map(async (cat) => {
-      const products = await Product.find({ category: cat._id }).select("_id");
+      const products = await Product.find({ category: cat._id, owner: req.user._id }).select("_id");
       const productIds = products.map((p) => p._id);
-      const sales = await Sale.find({ product: { $in: productIds }, date: { $gte: start, $lt: end } });
+      const sales = await Sale.find({ owner: req.user._id, product: { $in: productIds }, date: { $gte: start, $lt: end } });
       const revenue = sales.reduce((s, x) => s + x.totalRevenue, 0);
       return { category: cat.name, color: cat.color, revenue, productCount: products.length };
     })

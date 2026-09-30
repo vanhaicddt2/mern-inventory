@@ -16,12 +16,12 @@ const toSlug = (str) =>
     .replace(/(^-|-$)/g, "");
 
 router.get("/", async (req, res) => {
-  const categories = await Category.find().sort("name");
+  const categories = await Category.find({ owner: req.user._id }).sort("name");
   // dem so san pham trong tung danh muc
   const withCount = await Promise.all(
     categories.map(async (c) => ({
       ...c.toObject(),
-      productCount: await Product.countDocuments({ category: c._id }),
+      productCount: await Product.countDocuments({ category: c._id, owner: req.user._id }),
     }))
   );
   res.json(withCount);
@@ -34,6 +34,7 @@ router.post("/", async (req, res) => {
     if (!normalizedName) return res.status(400).json({ message: "Ten danh muc la bat buoc" });
 
     const category = await Category.create({
+      owner: req.user._id,
       name: normalizedName,
       slug: toSlug(normalizedName),
       icon,
@@ -52,7 +53,8 @@ router.put("/:id", async (req, res) => {
     const { name, icon, color, description } = req.body;
     const update = { icon, color, description };
     if (name) update.name = name, (update.slug = toSlug(name));
-    const category = await Category.findByIdAndUpdate(req.params.id, update, { new: true });
+    const category = await Category.findOneAndUpdate({ _id: req.params.id, owner: req.user._id }, update, { new: true });
+    if (!category) return res.status(404).json({ message: "Khong tim thay danh muc" });
     res.json(category);
   } catch (err) {
     res.status(400).json({ message: err.message });
@@ -60,10 +62,11 @@ router.put("/:id", async (req, res) => {
 });
 
 router.delete("/:id", async (req, res) => {
-  const count = await Product.countDocuments({ category: req.params.id });
+  const count = await Product.countDocuments({ category: req.params.id, owner: req.user._id });
   if (count > 0)
     return res.status(400).json({ message: "Khong the xoa danh muc con san pham ben trong" });
-  await Category.findByIdAndDelete(req.params.id);
+  const category = await Category.findOneAndDelete({ _id: req.params.id, owner: req.user._id });
+  if (!category) return res.status(404).json({ message: "Khong tim thay danh muc" });
   res.json({ message: "Da xoa danh muc" });
 });
 

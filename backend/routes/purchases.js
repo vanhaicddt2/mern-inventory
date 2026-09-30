@@ -9,7 +9,7 @@ router.use(protect);
 
 router.get("/", async (req, res) => {
   const { product } = req.query;
-  const filter = product ? { product } : {};
+  const filter = { owner: req.user._id, ...(product ? { product } : {}) };
   const purchases = await Purchase.find(filter).populate("product", "name").populate("supplierId", "name phone email").sort("-date");
   res.json(purchases);
 });
@@ -19,14 +19,14 @@ router.post("/", async (req, res) => {
   try {
     const { product, name, quantity, unitCost, supplier, supplierId, date, note } = req.body;
     const totalCost = quantity * unitCost;
-    const p = await Product.findById(product);
+    const p = await Product.findOne({ _id: product, owner: req.user._id });
     if (!p) return res.status(404).json({ message: "Khong tim thay san pham" });
 
     let resolvedSupplierId = null;
     let resolvedSupplierName = "NCC lẻ";
 
     if (supplierId) {
-      const foundSupplier = await Supplier.findById(supplierId);
+      const foundSupplier = await Supplier.findOne({ _id: supplierId, owner: req.user._id });
       if (!foundSupplier) return res.status(404).json({ message: "Khong tim thay nha cung cap" });
       resolvedSupplierId = foundSupplier._id;
       resolvedSupplierName = foundSupplier.name;
@@ -35,6 +35,7 @@ router.post("/", async (req, res) => {
     }
 
     const purchase = await Purchase.create({
+      owner: req.user._id,
       product,
       name: name?.trim() || p.name,
       supplierId: resolvedSupplierId,
@@ -65,7 +66,7 @@ router.post("/", async (req, res) => {
 
 router.put("/:id", async (req, res) => {
   try {
-    const purchase = await Purchase.findById(req.params.id);
+    const purchase = await Purchase.findOne({ _id: req.params.id, owner: req.user._id });
     if (!purchase) return res.status(404).json({ message: "Khong tim thay phieu nhap" });
 
     const { name, quantity, unitCost, supplierId, supplier, date, note } = req.body;
@@ -82,7 +83,7 @@ router.put("/:id", async (req, res) => {
     let resolvedSupplierId = null;
     let resolvedSupplierName = "NCC lẻ";
     if (supplierId) {
-      const foundSupplier = await Supplier.findById(supplierId);
+      const foundSupplier = await Supplier.findOne({ _id: supplierId, owner: req.user._id });
       if (!foundSupplier) return res.status(404).json({ message: "Khong tim thay nha cung cap" });
       resolvedSupplierId = foundSupplier._id;
       resolvedSupplierName = foundSupplier.name;
@@ -90,7 +91,7 @@ router.put("/:id", async (req, res) => {
       resolvedSupplierName = supplier.trim();
     }
 
-    const product = await Product.findById(purchase.product);
+    const product = await Product.findOne({ _id: purchase.product, owner: req.user._id });
     if (!product) return res.status(404).json({ message: "Khong tim thay san pham" });
 
     const nextStockQty = product.stockQty + nextQuantity - purchase.quantity;
@@ -109,7 +110,7 @@ router.put("/:id", async (req, res) => {
 
     await purchase.save();
 
-    const purchases = await Purchase.find({ product: product._id });
+    const purchases = await Purchase.find({ product: product._id, owner: req.user._id });
     const totalQuantity = purchases.reduce((sum, item) => sum + item.quantity, 0);
     const totalCost = purchases.reduce((sum, item) => sum + item.totalCost, 0);
     product.costPrice = totalQuantity > 0 ? Math.round(totalCost / totalQuantity) : 0;
@@ -122,9 +123,9 @@ router.put("/:id", async (req, res) => {
 });
 
 router.delete("/:id", async (req, res) => {
-  const purchase = await Purchase.findById(req.params.id);
+  const purchase = await Purchase.findOne({ _id: req.params.id, owner: req.user._id });
   if (!purchase) return res.status(404).json({ message: "Khong tim thay" });
-  const p = await Product.findById(purchase.product);
+  const p = await Product.findOne({ _id: purchase.product, owner: req.user._id });
   if (p) {
     p.stockQty = Math.max(0, p.stockQty - purchase.quantity);
     await p.save();

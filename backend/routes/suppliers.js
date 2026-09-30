@@ -8,7 +8,7 @@ router.use(protect);
 
 router.get("/", async (req, res) => {
   const { search } = req.query;
-  const filter = {};
+  const filter = { owner: req.user._id };
 
   if (search) {
     const regex = new RegExp(search, "i");
@@ -18,7 +18,7 @@ router.get("/", async (req, res) => {
   const suppliers = await Supplier.find(filter).sort("name").lean();
   const supplierIds = suppliers.map((supplier) => supplier._id);
   const purchaseStats = await Purchase.aggregate([
-    { $match: { supplierId: { $in: supplierIds } } },
+    { $match: { owner: req.user._id, supplierId: { $in: supplierIds } } },
     {
       $group: {
         _id: "$supplierId",
@@ -37,10 +37,10 @@ router.get("/", async (req, res) => {
 });
 
 router.get("/:id/history", async (req, res) => {
-  const supplier = await Supplier.findById(req.params.id).select("name");
+  const supplier = await Supplier.findOne({ _id: req.params.id, owner: req.user._id }).select("name");
   if (!supplier) return res.status(404).json({ message: "Khong tim thay nha cung cap" });
 
-  const purchases = await Purchase.find({ supplierId: supplier._id })
+  const purchases = await Purchase.find({ supplierId: supplier._id, owner: req.user._id })
     .populate("product", "name sku")
     .sort("-date")
     .lean();
@@ -53,6 +53,7 @@ router.post("/", async (req, res) => {
     if (!name?.trim()) return res.status(400).json({ message: "Ten nha cung cap la bat buoc" });
 
     const supplier = await Supplier.create({
+      owner: req.user._id,
       name: name.trim(),
       phone: String(phone || "").trim(),
       email: String(email || "").trim().toLowerCase(),
@@ -76,10 +77,10 @@ router.put("/:id", async (req, res) => {
     if (address !== undefined) update.address = String(address).trim();
     if (note !== undefined) update.note = String(note).trim();
 
-    const supplier = await Supplier.findByIdAndUpdate(req.params.id, update, { new: true });
+    const supplier = await Supplier.findOneAndUpdate({ _id: req.params.id, owner: req.user._id }, update, { new: true });
     if (!supplier) return res.status(404).json({ message: "Khong tim thay nha cung cap" });
 
-    await Purchase.updateMany({ supplierId: supplier._id }, { $set: { supplier: supplier.name } });
+    await Purchase.updateMany({ supplierId: supplier._id, owner: req.user._id }, { $set: { supplier: supplier.name } });
 
     res.json(supplier);
   } catch (err) {
@@ -88,10 +89,10 @@ router.put("/:id", async (req, res) => {
 });
 
 router.delete("/:id", async (req, res) => {
-  const supplier = await Supplier.findById(req.params.id);
+  const supplier = await Supplier.findOne({ _id: req.params.id, owner: req.user._id });
   if (!supplier) return res.status(404).json({ message: "Khong tim thay nha cung cap" });
 
-  await Purchase.updateMany({ supplierId: supplier._id }, { $set: { supplierId: null, supplier: "NCC lẻ" } });
+  await Purchase.updateMany({ supplierId: supplier._id, owner: req.user._id }, { $set: { supplierId: null, supplier: "NCC lẻ" } });
   await supplier.deleteOne();
 
   res.json({ message: "Da xoa nha cung cap" });
