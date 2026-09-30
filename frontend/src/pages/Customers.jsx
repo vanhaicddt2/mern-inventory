@@ -171,7 +171,7 @@ export default function Customers() {
               {history.sales.length ? (
                 <table className="w-full min-w-[560px] text-sm">
                   <thead className="text-left text-xs uppercase text-slate-500 border-b border-white/10">
-                    <tr><th className="px-3 py-3">Sản phẩm</th><th className="px-3 py-3">Số lượng</th><th className="px-3 py-3">Đơn giá</th><th className="px-3 py-3">Thành tiền</th><th className="px-3 py-3">Ngày mua</th></tr>
+                    <tr><th className="px-3 py-3">Sản phẩm</th><th className="px-3 py-3">SL</th><th className="px-3 py-3">Đơn giá</th><th className="px-3 py-3">Thành tiền</th><th className="px-3 py-3">Ngày mua</th></tr>
                   </thead>
                   <tbody className="divide-y divide-white/5">
                     {history.sales.map((sale) => (

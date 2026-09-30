@@ -41,7 +41,7 @@ router.get("/overview", async (req, res) => {
   });
 });
 
-// GET /api/stats/monthly?year=2026 -> doanh thu/loi nhuan tung thang trong nam
+// GET /api/stats/monthly?year=2026 -> doanh thu/loi nhuan tung trong nam
 router.get("/monthly", async (req, res) => {
   const year = Number(req.query.year) || new Date().getFullYear();
   const start = new Date(year, 0, 1);

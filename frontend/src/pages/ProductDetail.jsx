@@ -448,7 +448,7 @@ export default function ProductDetail() {
             rows={purchases}
             viewMode={transactionView}
             empty="Chưa có phiếu nhập nào"
-            columns={["Ngày", "Tên sản phẩm", "Số lượng", "Đơn giá", "Thành tiền", "Nhà cung cấp", "", ""]}
+            columns={["Ngày", "Tên sản phẩm", "SL", "Đơn giá", "Thành tiền", "Nhà cung cấp", "", ""]}
             render={(r) => [
               <div>
                 <div>{formatDate(r.date)}</div>
@@ -465,8 +465,9 @@ export default function ProductDetail() {
             cardRender={(r) => (
               <TransactionCard
                 title="Phiếu nhập"
+                productName={r.name || r.product?.name || product.name}
                 date={r.date}
-                details={["Số lượng", r.quantity, "Đơn giá", formatVND(r.unitCost), "Thành tiền", formatVND(r.totalCost), "Nhà cung cấp", r.supplier || "-"]}
+                details={["SL", r.quantity, "Đơn giá", formatVND(r.unitCost), "Thành tiền", formatVND(r.totalCost), "Nhà cung cấp", r.supplier || "-"]}
                 note={r.note}
                 actions={[<button onClick={() => openEditTransactionModal("purchases", r)} className="text-slate-400 hover:text-blue-400" aria-label="Sửa phiếu nhập"><Pencil size={16} /></button>, <button onClick={() => removeItem("purchases", r._id)} className="text-slate-400 hover:text-red-400" aria-label="Xóa phiếu nhập"><Trash2 size={16} /></button>]}
               />
@@ -478,7 +479,7 @@ export default function ProductDetail() {
             rows={sales}
             viewMode={transactionView}
             empty="Chưa có đơn bán nào"
-            columns={["Ngày", "Tên sản phẩm", "Số lượng", "Đơn giá", "Doanh thu", "Lãi", "Khách hàng", "", ""]}
+            columns={["Ngày", "Tên sản phẩm", "SL", "Đơn giá", "Doanh thu", "Lãi", "Khách hàng", "", ""]}
             render={(r) => [
               <div>
                 <div>{formatDate(r.date)}</div>
@@ -496,8 +497,9 @@ export default function ProductDetail() {
             cardRender={(r) => (
               <TransactionCard
                 title="Đơn bán"
+                productName={r.name || r.product?.name || product.name}
                 date={r.date}
-                details={["Số lượng", r.quantity, "Đơn giá", formatVND(r.unitPrice), "Doanh thu", formatVND(r.totalRevenue), "Lãi", formatVND(r.profit || 0), "Khách hàng", r.customer || "-"]}
+                details={["SL", r.quantity, "Đơn giá", formatVND(r.unitPrice), "Doanh thu", formatVND(r.totalRevenue), "Lãi", formatVND(r.profit || 0), "Khách hàng", r.customer || "-"]}
                 note={r.note}
                 actions={[<button onClick={() => openEditTransactionModal("sales", r)} className="text-slate-400 hover:text-blue-400" aria-label="Sửa đơn bán"><Pencil size={16} /></button>, <button onClick={() => removeItem("sales", r._id)} className="text-slate-400 hover:text-red-400" aria-label="Xóa đơn bán"><Trash2 size={16} /></button>]}
               />
@@ -525,6 +527,7 @@ export default function ProductDetail() {
             cardRender={(r) => (
               <TransactionCard
                 title={EXPENSE_TYPES[r.type] || "Chi phí"}
+                productName={r.name || r.product?.name || product.name}
                 date={r.date}
                 details={["Số tiền", formatVND(r.amount)]}
                 note={r.note}
@@ -549,7 +552,7 @@ export default function ProductDetail() {
               <form onSubmit={submitEditTransaction} className="space-y-3">
                 <input required placeholder="Tên sản phẩm" className="input-field" value={editTxForm.name || ""} onChange={(e) => setEditTxForm({ ...editTxForm, name: e.target.value })} />
                 <div className="grid grid-cols-2 gap-3">
-                  <input required type="text" inputMode="numeric" placeholder="Số lượng" className="input-field" value={editTxForm.quantity} onChange={(e) => setEditTxForm({ ...editTxForm, quantity: e.target.value.replace(/\D/g, "") })} />
+                  <input required type="text" inputMode="numeric" placeholder="SL" className="input-field" value={editTxForm.quantity} onChange={(e) => setEditTxForm({ ...editTxForm, quantity: e.target.value.replace(/\D/g, "") })} />
                   <input required type="text" inputMode="numeric" placeholder="Đơn giá nhập" className="input-field" value={editTxForm.unitCost} onChange={(e) => setEditTxForm({ ...editTxForm, unitCost: formatNumberInput(e.target.value) })} />
                 </div>
                 <select className="input-field" value={editTxForm.supplierId} onChange={(e) => setEditTxForm({ ...editTxForm, supplierId: e.target.value })}>
@@ -565,7 +568,7 @@ export default function ProductDetail() {
               <form onSubmit={submitEditTransaction} className="space-y-3">
                 <input required placeholder="Tên sản phẩm" className="input-field" value={editTxForm.name || ""} onChange={(e) => setEditTxForm({ ...editTxForm, name: e.target.value })} />
                 <div className="grid grid-cols-2 gap-3">
-                  <input required type="text" inputMode="numeric" placeholder="Số lượng" className="input-field" value={editTxForm.quantity} onChange={(e) => setEditTxForm({ ...editTxForm, quantity: e.target.value.replace(/\D/g, "") })} />
+                  <input required type="text" inputMode="numeric" placeholder="SL" className="input-field" value={editTxForm.quantity} onChange={(e) => setEditTxForm({ ...editTxForm, quantity: e.target.value.replace(/\D/g, "") })} />
                   <input required type="text" inputMode="numeric" placeholder="Đơn giá bán" className="input-field" value={editTxForm.unitPrice} onChange={(e) => setEditTxForm({ ...editTxForm, unitPrice: formatNumberInput(e.target.value) })} />
                   <input required type="text" inputMode="numeric" placeholder="Lãi" className="input-field" value={editTxForm.profit || ""} onChange={(e) => setEditTxForm({ ...editTxForm, profit: formatNumberInput(e.target.value) })} />
                 </div>
@@ -723,7 +726,7 @@ export default function ProductDetail() {
                 )}
 
                 <div className="grid grid-cols-2 gap-3">
-                  <input required type="text" inputMode="numeric" placeholder="Số lượng" className="input-field" value={purchaseForm.quantity} onChange={(e) => setPurchaseForm({ ...purchaseForm, quantity: formatNumberInput(e.target.value) })} />
+                  <input required type="text" inputMode="numeric" placeholder="SL" className="input-field" value={purchaseForm.quantity} onChange={(e) => setPurchaseForm({ ...purchaseForm, quantity: formatNumberInput(e.target.value) })} />
                   <input required type="text" inputMode="numeric" placeholder="Đơn giá nhập" className="input-field" value={purchaseForm.unitCost} onChange={(e) => setPurchaseForm({ ...purchaseForm, unitCost: formatNumberInput(e.target.value) })} />
                 </div>
                 <input placeholder="Ghi chú" className="input-field" value={purchaseForm.note} onChange={(e) => setPurchaseForm({ ...purchaseForm, note: e.target.value })} />
@@ -806,7 +809,7 @@ export default function ProductDetail() {
                 )}
 
                 <div className="grid grid-cols-2 gap-3">
-                  <input required type="text" inputMode="numeric" placeholder="Số lượng" className="input-field" value={saleForm.quantity} onChange={(e) => setSaleForm({ ...saleForm, quantity: formatNumberInput(e.target.value) })} />
+                  <input required type="text" inputMode="numeric" placeholder="SL" className="input-field" value={saleForm.quantity} onChange={(e) => setSaleForm({ ...saleForm, quantity: formatNumberInput(e.target.value) })} />
                   <input required type="text" inputMode="numeric" placeholder="Đơn giá bán" className="input-field" value={saleForm.unitPrice} onChange={(e) => setSaleForm({ ...saleForm, unitPrice: formatNumberInput(e.target.value) })} />
                   <input required type="text" inputMode="numeric" placeholder="Lãi" className="input-field" value={saleForm.profit} onChange={(e) => setSaleForm({ ...saleForm, profit: formatNumberInput(e.target.value) })} />
                 </div>
@@ -835,7 +838,7 @@ export default function ProductDetail() {
   );
 }
 
-function TransactionCard({ title, date, details, note, actions }) {
+function TransactionCard({ title, productName, date, details, note, actions }) {
   const detailItems = [];
   for (let index = 0; index < details.length; index += 2) {
     detailItems.push({ label: details[index], value: details[index + 1] });
@@ -845,11 +848,11 @@ function TransactionCard({ title, date, details, note, actions }) {
     <article className="group relative overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-br from-slate-800/85 to-slate-900/90 p-4 shadow-lg shadow-black/20 transition-all duration-200 hover:-translate-y-0.5 hover:border-primary-400/30 hover:shadow-xl hover:shadow-primary-950/30">
       <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary-400/60 to-transparent opacity-70" />
       <div className="flex items-start justify-between gap-3">
-        <div>
-          <h3 className="font-semibold text-white">{title}</h3>
+        <div className="min-w-0 flex-1">
+          <h3 className="break-words text-sm font-semibold leading-5 text-white sm:text-base">{title} · {productName}</h3>
           <p className="mt-1 text-xs text-slate-500">{formatDate(date)}</p>
         </div>
-        <div className="flex items-center gap-1 rounded-lg bg-black/15 p-1 opacity-80 transition-opacity group-hover:opacity-100">{actions}</div>
+        <div className="flex shrink-0 items-center gap-1 rounded-lg bg-black/15 p-1 opacity-80 transition-opacity group-hover:opacity-100">{actions}</div>
       </div>
       <div className="mt-4 grid grid-cols-2 gap-2">
         {detailItems.map((item) => (

@@ -26,7 +26,8 @@ export default function CategoryPage() {
   const [statsOpen, setStatsOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [viewMode, setViewMode] = useState("card");
-  const [showSku, setShowSku] = useState(true);
+  const [showSku, setShowSku] = useState(false);
+  const [showOutOfStock, setShowOutOfStock] = useState(false);
   const [modal, setModal] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
   const [form, setForm] = useState({ name: "", sku: "", costPrice: "", sellPrice: "", stockQty: 0, minStock: 2 });
@@ -197,6 +198,8 @@ export default function CategoryPage() {
     }
   };
 
+  const visibleProducts = products.filter((product) => showOutOfStock || Number(product.stockQty) > 0);
+
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
@@ -228,7 +231,7 @@ export default function CategoryPage() {
           {statsOpen && (
             <div className="space-y-4 px-4 pb-4 border-t border-white/5">
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pt-4">
-                <StatCard icon={Package} label="Tổng số lượng" value={categoryStats.totalStockQty} sub={`${categoryStats.totalProducts} sản phẩm`} color="#6366f1" />
+                <StatCard icon={Package} label="Tổng SL" value={categoryStats.totalStockQty} sub={`${categoryStats.totalProducts} sản phẩm`} color="#6366f1" />
                 <StatCard icon={TrendingUp} label="Đã bán" value={categoryStats.totalSoldQty} sub={`Sell-through ${categoryStats.sellThroughRate.toFixed(1)}%`} color="#22c55e" />
                 <StatCard icon={Wallet} label="Doanh thu đã bán" value={formatVND(categoryStats.totalRevenue)} color="#0ea5e9" />
                 <StatCard
@@ -242,7 +245,7 @@ export default function CategoryPage() {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                 <div className="card py-4">
-                  <p className="text-xs text-slate-400 uppercase tracking-wide">Số lượng còn lại</p>
+                  <p className="text-xs text-slate-400 uppercase tracking-wide">SL còn lại</p>
                   <p className="text-xl font-bold text-white mt-1">{categoryStats.totalStockQty}</p>
                 </div>
                 <div className="card py-4">
@@ -281,9 +284,9 @@ export default function CategoryPage() {
       )}
 
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="relative max-w-sm flex-1">
-          <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500" />
-          <input placeholder="Tìm sản phẩm..." className="input-field pl-10" value={search} onChange={(e) => setSearch(e.target.value)} />
+        <div className="relative max-w-sm flex-2">
+          <Search size={16} className="absolute left-4.3 top-1/2 -translate-y-1/2 text-slate-500" />
+          <input placeholder="Tìm sản phẩm..." className="input-field pl-11" value={search} onChange={(e) => setSearch(e.target.value)} />
         </div>
         <div className="flex items-center gap-1 rounded-xl border border-white/10 bg-white/5 p-1" aria-label="Kiểu hiển thị sản phẩm">
           <button
@@ -307,7 +310,7 @@ export default function CategoryPage() {
             <span className="hidden sm:inline">Bảng</span>
           </button>
         </div>
-        {viewMode === "table" && (
+        <div className="flex flex-wrap items-center gap-3">
           <label className="flex cursor-pointer items-center gap-2 text-sm text-slate-400">
             <input
               type="checkbox"
@@ -317,12 +320,21 @@ export default function CategoryPage() {
             />
             Ẩn SKU
           </label>
-        )}
+          <label className="flex cursor-pointer items-center gap-2 text-sm text-slate-400">
+            <input
+              type="checkbox"
+              checked={!showOutOfStock}
+              onChange={(e) => setShowOutOfStock(!e.target.checked)}
+              className="h-4 w-4 accent-primary-500"
+            />
+            Ẩn hết hàng
+          </label>
+        </div>
       </div>
 
       {viewMode === "card" ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {products.map((p) => (
+          {visibleProducts.map((p) => (
             <Link key={p._id} to={`/products/${p._id}`} className="card group relative hover:border-primary-500/40 transition-colors border border-transparent">
               <div className="absolute top-3 right-3 flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity z-10">
                 <button type="button" onClick={(e) => { e.preventDefault(); openEditModal(p); }} className="text-slate-500 hover:text-blue-400 transition-colors" aria-label="Sửa sản phẩm">
@@ -336,7 +348,7 @@ export default function CategoryPage() {
                 <h3 className="font-semibold text-white">{p.name}</h3>
                 {p.stockQty <= p.minStock && <AlertTriangle size={16} className="text-amber-400 shrink-0" />}
               </div>
-              {p.sku && <p className="text-xs text-slate-500 mt-0.5">SKU: {p.sku}</p>}
+              {showSku && p.sku && <p className="text-xs text-slate-500 mt-0.5">SKU: {p.sku}</p>}
               <div className="flex items-center justify-between mt-4">
                 <div>
                   <p className="text-xs text-slate-400">Giá bán</p>
@@ -367,7 +379,7 @@ export default function CategoryPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-white/5">
-              {products.map((p) => (
+              {visibleProducts.map((p) => (
                 <tr key={p._id} className="text-slate-300 transition-colors hover:bg-white/5">
                   <td className="px-4 py-3">
                     <Link to={`/products/${p._id}`} className="flex items-center gap-2 font-medium text-white hover:text-primary-400">
@@ -395,8 +407,10 @@ export default function CategoryPage() {
         </div>
       )}
 
-      {products.length === 0 && (
-        <p className="text-slate-500 text-sm col-span-full text-center py-12">Chưa có sản phẩm nào trong danh mục này.</p>
+      {visibleProducts.length === 0 && (
+        <p className="text-slate-500 text-sm col-span-full text-center py-12">
+          {products.length === 0 ? "Chưa có sản phẩm nào trong danh mục này." : "Không có sản phẩm còn hàng để hiển thị."}
+        </p>
       )}
 
       {modal && (
